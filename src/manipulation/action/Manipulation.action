@@ -1,0 +1,11 @@
+# Goal
+string action_type
+geometry_msgs/Pose block_pose
+
+---
+# Result
+bool result
+
+---
+# Feedback
+string feedback
