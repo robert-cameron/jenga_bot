@@ -13,6 +13,9 @@
 #include <moveit_msgs/msg/position_constraint.hpp>
 #include <shape_msgs/msg/solid_primitive.hpp>
 #include "manipulation/action/manipulation.hpp"
+#include "./actions/free_move_action.hpp"
+#include "./actions/push_block_action.hpp"
+#include "./actions/linear_move_action.hpp"
 
 using Manipulation = manipulation::action::Manipulation;
 using GoalHandleManipulation = rclcpp_action::ServerGoalHandle<Manipulation>;
@@ -67,59 +70,29 @@ private:
   void execute(const std::shared_ptr<GoalHandleManipulation> goal_handle)
   {
     const auto goal = goal_handle->get_goal();
-    auto feedback = std::make_shared<Manipulation::Feedback>();
-    auto result   = std::make_shared<Manipulation::Result>();
+    std::unique_ptr<BaseAction> action;
 
-    feedback->feedback = "Starting motion planning...";
-    goal_handle->publish_feedback(feedback);
-
-    if (goal->action_type != "free_move") {
-      moveit_msgs::msg::Constraints constraints;
-
-      //constraints.orientation_constraints.push_back(setOrientationDownConstraint().orientation_constraints[0]);
-
-      constraints.joint_constraints.push_back(
-        createJointConstraint("shoulder_pan_joint", 0.785398, 0.785398, 0.785398, 1.0));
-      constraints.joint_constraints.push_back(
-        createJointConstraint("shoulder_lift_joint", -1.0472, 0.523599, 0.523599, 1.0));
-      constraints.joint_constraints.push_back(
-        createJointConstraint("elbow_joint", 1.5708, 0.785398, 0.785398, 1.0));
-      constraints.joint_constraints.push_back(
-        createJointConstraint("wrist_1_joint", -1.5708, 0.785398, 0.785398, 1.0));
-      constraints.joint_constraints.push_back(
-        createJointConstraint("wrist_2_joint", -1.5708, 0.3, 0.3, 1.0));
-      // constraints.joint_constraints.push_back(
-      //   createJointConstraint("wrist_3_joint", 0, 1.5708, 1.5708, 1.0));
-
-      move_group_interface_.setPathConstraints(constraints);
+    if (goal->action_type == "push_block") {
+      action = std::make_unique<PushBlockAction>();
+    } else if (goal->action_type == "free_move") {
+      action = std::make_unique<FreeMoveAction>();
+    } else if (goal->action_type == "constrained_move") {
+      action = std::make_unique<ConstrainedMoveAction>();
+    } else if (goal->action_type == "linear_move") {
+      action = std::make_unique<LinearMoveAction>();
     } else {
-      move_group_interface_.clearPathConstraints();
+      RCLCPP_ERROR(this->get_logger(), "Unknown action type: %s", goal->action_type.c_str());
+      return;
     }
 
-    move_group_interface_.setStartStateToCurrentState();
+    bool success = action->execute(move_group_interface_, *goal, goal_handle);
 
-    move_group_interface_.setPoseTarget(goal->block_pose);
-
-    moveit::planning_interface::MoveGroupInterface::Plan plan;
-    bool success = (move_group_interface_.plan(plan) == moveit::core::MoveItErrorCode::SUCCESS);
-
-    if (success) {
-      feedback->feedback = "Plan found. Executing...";
-      goal_handle->publish_feedback(feedback);
-      move_group_interface_.execute(plan);
-      feedback->feedback = "Motion complete.";
-      goal_handle->publish_feedback(feedback);
-      result->result = true;
+    auto result = std::make_shared<Manipulation::Result>();
+    result->result = success;
+    if (success)
       goal_handle->succeed(result);
-    } else {
-      feedback->feedback = "Planning failed.";
-      goal_handle->publish_feedback(feedback);
-      result->result = false;
+    else
       goal_handle->abort(result);
-    }
-
-    move_group_interface_.clearPoseTargets();
-    move_group_interface_.clearPathConstraints();
   }
 
   moveit_msgs::msg::Constraints setOrientationDownConstraint()
@@ -162,14 +135,15 @@ private:
 
     std::string frame_id = move_group_interface_.getPlanningFrame();
 
-
     planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 0.04, 3.0, 0.70, -0.60, 0.5, frame_id, "backWall"));
     planning_scene_interface.applyCollisionObject(generateCollisionObject(0.04, 2.4, 3.0, -0.55, 0.25, 0.8, frame_id, "sideWall"));
     planning_scene_interface.applyCollisionObject(generateCollisionObject(3, 3, 0.01, 0.85, 0.25, 0.05, frame_id, "table"));
     planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 2.4, 0.04, 0.85, 0.25, 1.5, frame_id, "ceiling"));
+    planning_scene_interface.applyCollisionObject(generateCollisionObject(0.15, 0.15, 0.4, 0.25, 0.25, 0.2, "world", "tower"));
+
   }
 
-    auto generateCollisionObject(float sx, float sy, float sz, float x, float y, float z, const std::string& frame_id, const std::string& id) -> moveit_msgs::msg::CollisionObject {
+  auto generateCollisionObject(float sx, float sy, float sz, float x, float y, float z, const std::string& frame_id, const std::string& id) -> moveit_msgs::msg::CollisionObject {
     moveit_msgs::msg::CollisionObject collision_object;
     collision_object.header.frame_id = frame_id;
     collision_object.id = id;

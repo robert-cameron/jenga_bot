@@ -47,7 +47,7 @@ def get_robot_description_semantic():
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution([FindPackageShare("ur_moveit_config"), "srdf", "ur.srdf.xacro"]),
+            PathJoinSubstitution([FindPackageShare("ur_moveit_config_custom"), "srdf", "ur.srdf.xacro"]),
             " ",
             "name:=ur ",
             "prefix:=",
