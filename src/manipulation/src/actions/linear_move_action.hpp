@@ -29,7 +29,7 @@ public:
     const double jump_threshold = 0.0;
 
     double fraction = move_group.computeCartesianPath(
-      waypoints, eef_step, jump_threshold, trajectory);
+      waypoints, eef_step, jump_threshold, trajectory, false);
 
     if (fraction < 0.99) {
       feedback->feedback = "Failed to compute full Cartesian path (" + std::to_string(fraction * 100.0) + "% achieved)";
@@ -55,3 +55,4 @@ public:
     return true;
   }
 };
+
