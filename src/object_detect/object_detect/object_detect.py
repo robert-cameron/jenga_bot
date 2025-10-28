@@ -121,7 +121,7 @@ class objectDetect(Node):
             if pos is None:
                 continue
 
-            x, y, z = pos
+            y, x, z = pos
             self.get_logger().info(f"Marker {marker_id}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
 
             # Publish TF transform
