@@ -1,4 +1,4 @@
-gnome-terminal -t "DriverServer" -e 'ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur5e robot_ip:=192.168.0.100 use_fake_hardware:=false launch_rviz:=false'
+gnome-terminal -t "DriverServer" -e 'ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur5e robot_ip:=192.168.0.100 initial_joint_controller:=joint_trajectory_controller use_fake_hardware:=false launch_rviz:=false'
 
 sleep 10
 
