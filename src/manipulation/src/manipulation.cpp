@@ -14,7 +14,7 @@
 #include <shape_msgs/msg/solid_primitive.hpp>
 #include "manipulation/action/manipulation.hpp"
 #include "./actions/free_move_action.hpp"
-#include "./actions/push_block_action.hpp"
+#include "./actions/push_move_action.hpp"
 #include "./actions/linear_move_action.hpp"
 
 using Manipulation = manipulation::action::Manipulation;
@@ -72,8 +72,8 @@ private:
     const auto goal = goal_handle->get_goal();
     std::unique_ptr<BaseAction> action;
 
-    if (goal->action_type == "push_block") {
-      action = std::make_unique<PushBlockAction>();
+    if (goal->action_type == "push_move") {
+      action = std::make_unique<PushMoveAction>();
     } else if (goal->action_type == "free_move") {
       action = std::make_unique<FreeMoveAction>();
     } else if (goal->action_type == "constrained_move") {
