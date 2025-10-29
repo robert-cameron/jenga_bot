@@ -11,7 +11,7 @@
 class PushMoveAction : public BaseAction
 {
 public:
-  explicit PushMoveAction(double push_distance = 0.05, double push_speed = 0.1, double retract_speed = 0.2)
+  explicit PushMoveAction(double push_distance = 0.08, double push_speed = 0.1, double retract_speed = 0.2)
   : constrained_action_(),
     linear_push_action_(push_speed),
     linear_retract_action_(retract_speed),
@@ -43,7 +43,7 @@ public:
     tf2::fromMsg(push_pose.orientation, orientation);
     orientation.normalize();
 
-    tf2::Vector3 forward_vector(1.0, 0.0, 0.0);
+    tf2::Vector3 forward_vector(0.0, 1.0, 0.0);
     tf2::Vector3 push_vector = tf2::quatRotate(orientation, forward_vector).normalized() * push_distance_;
 
     push_pose.position.x += push_vector.x();
