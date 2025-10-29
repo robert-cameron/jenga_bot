@@ -143,13 +143,13 @@ class objectDetect(Node):
 
             y, x, z = pos
             self.get_logger().info(f"Marker {marker_id}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
-            marker_positions[marker_id] = (x,y,z)
+            marker_positions[marker_id] = (x,y,z, quat[0], quat[1], quat[2], quat[3])
 
             # Publish TF transform
             transform = TransformStamped()
             transform.header.stamp = self.get_clock().now().to_msg()
             transform.header.frame_id = "camera_color_optical_frame"
-            transform.child_frame_id = f"aruco_{marker_id}_frame"
+            transform.child_frame_id = f"new_{marker_id}_frame"
             transform.transform.translation.x = x
             transform.transform.translation.y = y
             transform.transform.translation.z = z
@@ -157,6 +157,67 @@ class objectDetect(Node):
             transform.transform.rotation.y = quat[1]
             transform.transform.rotation.z = quat[2]
             transform.transform.rotation.w = quat[3]
+            self.tf_broadcaster.sendTransform(transform)
+
+        print(marker_positions)
+
+        # Compute intersection only if marker 1 and 2 are found
+        if 1 in marker_positions and 2 in marker_positions:
+            try:
+                tf1 = self.tf_buffer.lookup_transform(
+                    "camera_color_optical_frame", "new_1_frame", rclpy.time.Time()
+                )
+            except:
+                self.get_logger().warn("TF for marker 1 not available yet.")
+                return
+
+            # Rotation matrix in WORLD FRAME
+            quat = [
+                tf1.transform.rotation.x,
+                tf1.transform.rotation.y,
+                tf1.transform.rotation.z,
+                tf1.transform.rotation.w
+            ]
+            R1 = self.quaternion_to_rotation_matrix(quat)[0:3, 0:3]
+
+            # World-aligned marker axes
+            right = R1[:, 0]   # +X axis (red in RViz)
+            up    = R1[:, 1]   # +Y axis (green in RViz)
+
+
+
+            # Marker positions (already in same world frame!)
+            x1, y1, z1, *_ = marker_positions[1]
+            x2, y2, z2, *_ = marker_positions[2]
+
+
+            # Compute intersection
+            direction = right + up
+            direction = direction / np.linalg.norm(direction)
+
+            t = (y2 - y1) / direction[1]
+            ix = x1 + t * direction[0]
+            iy = y1 + t * direction[1]
+            iz = z1 + t * direction[2]
+
+            distance = np.sqrt(((x2-x1)**2 + (y2-y1)**2)/2)
+
+            p_new = np.array([x1, y1, z1]) + right * distance
+            new_x, new_y, new_z = p_new.tolist()
+
+            self.get_logger().info(f"Intersection corrected: x={ix:.3f}, y={iy:.3f}, z={iz:.3f}")
+            # Broadcast TF for intersection point
+            transform = TransformStamped()
+            transform.header.stamp = self.get_clock().now().to_msg()
+            transform.header.frame_id = "camera_color_optical_frame"
+            transform.child_frame_id = "intersection_point"
+            transform.transform.translation.x = new_x
+            transform.transform.translation.y = new_y
+            transform.transform.translation.z = new_z
+            transform.transform.rotation.x = tf1.transform.rotation.x
+            transform.transform.rotation.y = tf1.transform.rotation.y
+            transform.transform.rotation.z = tf1.transform.rotation.z
+            transform.transform.rotation.w = tf1.transform.rotation.w
             self.tf_broadcaster.sendTransform(transform)
             
     def rotation_matrix_to_quaternion(self, R):
@@ -167,35 +228,14 @@ class objectDetect(Node):
         qz = (R[1,0] - R[0,1]) / (4*qw)
         return [qx, qy, qz, qw]
 
-    def routine_callback_old(self):
-
-        if (self.cv_image is None):
-            return
-        
-
-        # TODO: COLOUR MASK TO FIND THE CENTER OF AN OBJECT OF INTEREST
-
-        item_img_global = self.pixel_2_global([360, 240])
-
-        if (item_img_global is None):
-            return
-        
-        x = item_img_global[0] - 0.038 # OFFSET TO ACCOUNT FOR CAMERA OFFSET
-        y = item_img_global[1]
-        z = item_img_global[2] 
-        print(f"x {x} y {y} z {z}")
-
-
-
-        transform_stamped = TransformStamped()
-        transform_stamped.header.stamp = self.get_clock().now().to_msg()
-        transform_stamped.header.frame_id = "camera_color_optical_frame"
-        transform_stamped.child_frame_id = "blue_object_frame"
-
-        # TODO: COMPLETE TRANSFORMATION OUTPUT
-
-        self.tf_broadcaster.sendTransform(transform_stamped)
-
+    def quaternion_to_rotation_matrix(self, q):
+        x, y, z, w = q
+        R = np.array([
+            [1-2*(y*y+z*z),   2*(x*y - z*w),     2*(x*z + y*w)],
+            [2*(x*y + z*w),   1-2*(x*x+z*z),     2*(y*z - x*w)],
+            [2*(x*z - y*w),   2*(y*z + x*w),     1-2*(x*x+y*y)]
+        ])
+        return R
 
 def main():
     rclpy.init()
