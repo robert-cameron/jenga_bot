@@ -109,10 +109,30 @@ class objectDetect(Node):
         corners, ids, _ = cv2.aruco.detectMarkers(self.cv_image, self.aruco_dict, parameters=self.aruco_params)
         if ids is None:
             return
+        
+        marker_positions = {}
+        marker_length = 0.05  # <-- meters (set this to your marker’s real side length)
+
+        # Convert intrinsics to OpenCV format
+        cameraMatrix = np.array([
+            [self.intrinsics.fx, 0, self.intrinsics.ppx],
+            [0, self.intrinsics.fy, self.intrinsics.ppy],
+            [0, 0, 1]
+        ])
+        distCoeffs = np.zeros(5)  # or use real distortion coefficients if known
+
+        # Estimate pose of each marker
+        rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners, marker_length, cameraMatrix, distCoeffs)
+
 
         for i, marker_id in enumerate(ids.flatten()):
             pts = corners[i][0]
+            rvec = rvecs[i][0]
             center = np.mean(pts, axis=0).astype(int)
+            
+            R, _ = cv2.Rodrigues(rvec)
+            quat = self.rotation_matrix_to_quaternion(R)
+
             cv2.circle(self.cv_image, tuple(center), 4, (0, 255, 0), -1)
             print(f"Detected marker ID: {marker_id} at pixel {center}")
             print(pts)
@@ -123,6 +143,7 @@ class objectDetect(Node):
 
             y, x, z = pos
             self.get_logger().info(f"Marker {marker_id}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
+            marker_positions[marker_id] = (x,y,z)
 
             # Publish TF transform
             transform = TransformStamped()
@@ -132,11 +153,19 @@ class objectDetect(Node):
             transform.transform.translation.x = x
             transform.transform.translation.y = y
             transform.transform.translation.z = z
-            transform.transform.rotation.x = 0.0
-            transform.transform.rotation.y = 0.0
-            transform.transform.rotation.z = 0.0
-            transform.transform.rotation.w = 1.0
+            transform.transform.rotation.x = quat[0]
+            transform.transform.rotation.y = quat[1]
+            transform.transform.rotation.z = quat[2]
+            transform.transform.rotation.w = quat[3]
             self.tf_broadcaster.sendTransform(transform)
+            
+    def rotation_matrix_to_quaternion(self, R):
+        """Convert a 3x3 rotation matrix to quaternion [x, y, z, w]."""
+        qw = np.sqrt(1 + np.trace(R)) / 2
+        qx = (R[2,1] - R[1,2]) / (4*qw)
+        qy = (R[0,2] - R[2,0]) / (4*qw)
+        qz = (R[1,0] - R[0,1]) / (4*qw)
+        return [qx, qy, qz, qw]
 
     def routine_callback_old(self):
 
