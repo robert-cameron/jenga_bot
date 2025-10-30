@@ -51,7 +51,7 @@ void loop() {
 
       if (lowCount >= AUTO_CALIBRATION_COUNT) {
         autoOffset = lowSum / lowCount;
-        DEBUGSerial.println("自动校准完成 / Auto-calibration applied");
+        DEBUGSerial.println("Auto-calibration applied");
         lowCount = 0;
         lowSum = 0;
         autoEnabled = true;
@@ -80,7 +80,7 @@ void loop() {
       if (disableCount >= AUTO_CALIBRATION_COUNT) {
         autoEnabled = false;
         disableCount = 0;
-        DEBUGSerial.println("自动校准已暂停 / Auto-calibration disabled");
+        DEBUGSerial.println("Auto-calibration disabled");
       }
     } else {
       disableCount = 0;
