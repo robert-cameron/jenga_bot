@@ -41,20 +41,25 @@ void setup() {
 }
 
 void loop() {
-  long Fdata = getPressValue(sensorPin);
+  long rawValue = getRawPressValue(sensorPin);  // 获取未校准值
+  long Fdata = rawValue - MANUAL_OFFSET - autoOffset;
 
-  // 自动校准逻辑 / Auto-calibration logic
+  // 自动归零处理：将 -10g 到 0g 的值归为 0
+  if (Fdata >= -10 && Fdata < 0) {
+    Fdata = 0;
+  }
+
+  // 自动校准逻辑：使当前值归零
   if (autoEnabled) {
     if (Fdata >= 0 && Fdata < AUTO_CALIBRATION_RANGE) {
       lowCount++;
-      lowSum += Fdata;
+      lowSum += rawValue;  // 使用原始值进行校准
 
       if (lowCount >= AUTO_CALIBRATION_COUNT) {
-        autoOffset = lowSum / lowCount;
+        autoOffset = lowSum / lowCount - MANUAL_OFFSET;  // 使 Fdata = 0
         DEBUGSerial.println("Auto-calibration applied");
         lowCount = 0;
         lowSum = 0;
-        autoEnabled = true;
         disableCount = 0;
       }
     } else {
@@ -118,24 +123,21 @@ long getPressValue(int pin) {
     pressure = map(voltage, VOLTAGE_MIN, VOLTAGE_MAX, PRESS_MIN, PRESS_MAX);  // 映射电压到压力 / Map voltage to pressure
   }
 
-  long calibrated = pressure - MANUAL_OFFSET - autoOffset;  // 总校准 = 人工 + 自动 / Total offset = manual + auto
+  return pressure - MANUAL_OFFSET - autoOffset;  // 总校准 = 人工 + 自动 / Total offset = manual + auto
+}
+long getRawPressValue(int pin) {
+  int value = analogRead(pin);
+  int voltage = map(value, 0, 1023, 5000, 0);
 
-  // 如果重量在 -10g 到 0g 之间，则强制设为 0g / Clamp near-zero negative values to 0
-  if (calibrated > -10 && calibrated < 0) {
-    calibrated = 0;
+  long pressure = 0;
+  if (voltage < VOLTAGE_MIN) {
+    pressure = 0;
+  } else if (voltage > VOLTAGE_MAX) {
+    pressure = PRESS_MAX;
+  } else {
+    pressure = map(voltage, VOLTAGE_MIN, VOLTAGE_MAX, PRESS_MIN, PRESS_MAX);
   }
 
-  return calibrated;
+  return pressure;
 }
 
-// 标准 C++ 主函数入口 / Standard C++ entry point
-int main() {
-  init();     // 初始化 Arduino 核心 / Initialize Arduino core
-  setup();    // 调用用户定义的 setup() / Call user-defined setup()
-
-  while (true) {
-    loop();   // 持续调用 loop() / Continuously call loop()
-  }
-
-  return 0;
-}
