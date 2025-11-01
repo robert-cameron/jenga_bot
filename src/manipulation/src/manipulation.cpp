@@ -35,6 +35,7 @@ public:
       std::bind(&ManipulationNode::handle_accepted, this, std::placeholders::_1)
     );
 
+    move_group_interface_.setEndEffectorLink("end_eff_contact");
     move_group_interface_.setPlanningTime(15.0);
     move_group_interface_.setNumPlanningAttempts(30);
     move_group_interface_.setPlannerId("LBKPIECEkConfigDefault");
@@ -139,7 +140,7 @@ private:
     planning_scene_interface.applyCollisionObject(generateCollisionObject(0.04, 1.2, 1.0, -0.30, 0.25, 0.5, frame_id, "sideWall"));
     planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 2.4, 0.01, 0.85, 0.25, 0.013, frame_id, "table"));
     planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 2.4, 0.04, 0.85, 0.25, 1.2, frame_id, "ceiling"));
-    planning_scene_interface.applyCollisionObject(generateCollisionObject(0.15, 0.15, 0.4, 0.25, 0.25, 0.2, "world", "tower"));
+    planning_scene_interface.applyCollisionObject(generateCollisionObject(0.10, 0.10, 0.4, 0.25, 0.25, 0.2, "world", "tower"));
 
   }
 

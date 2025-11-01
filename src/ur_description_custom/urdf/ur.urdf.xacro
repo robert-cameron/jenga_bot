@@ -107,6 +107,16 @@
     <origin xyz="-0.2 0.38 0.18" rpy="-1.5708 0 -1.5708"/>
    </joint>
 
+   <!-- End effector contact point frame -->
+   <link name="$(arg tf_prefix)end_eff_contact"/>
+
+   <joint name="tool0_to_end_eff_contact" type="fixed">
+    <parent link="$(arg tf_prefix)tool0"/>
+    <child link="$(arg tf_prefix)end_eff_contact"/>
+    <origin xyz="0.0 0.2 0.18" rpy="0 0 0"/>
+   </joint>
+
+
    <xacro:if value="$(arg sim_gazebo)">
     <!-- Gazebo plugins -->
     <gazebo reference="world">

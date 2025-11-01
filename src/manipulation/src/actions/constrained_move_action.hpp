@@ -65,11 +65,11 @@ protected:
     constraints_.joint_constraints.push_back(
       createJointConstraint("shoulder_pan_joint", 0.785398, 1.0472, 1.0472, 1.0));
     constraints_.joint_constraints.push_back(
-      createJointConstraint("shoulder_lift_joint", -1.5708, 0.785398, 0.785398, 1.0));
+      createJointConstraint("shoulder_lift_joint", -1.5708, 1.0472, 1.0472, 1.0));
     constraints_.joint_constraints.push_back(
-      createJointConstraint("elbow_joint", 1.5708, 0.785398, 0.785398, 1.0));
+      createJointConstraint("elbow_joint", 1.5708, 1.0472, 1.0472, 1.0));
     constraints_.joint_constraints.push_back(
-      createJointConstraint("wrist_1_joint", -1.5708, 0.785398, 0.785398, 1.0));
+      createJointConstraint("wrist_1_joint", -1.5708, 1.0472, 1.0472, 1.0));
     constraints_.joint_constraints.push_back(
       createJointConstraint("wrist_2_joint", -1.5708, 0.3, 0.3, 1.0));
 
