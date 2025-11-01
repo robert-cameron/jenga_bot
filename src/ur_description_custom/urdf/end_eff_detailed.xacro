@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <link name="end_eff_base_link">
+    <visual>
+      <geometry>
+        <mesh filename="package://ur_description_custom/meshes/end_eff/assembly.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="yellow">
+        <color rgba="1 1 0 1"/>
+      </material>
+    </visual>
+
+    <collision>
+      <origin xyz="0.42 0 0.1" rpy="0 -1.5708 0"/>
+      <geometry>
+        <mesh filename="package://ur_description_custom/meshes/end_eff/collision.stl" scale="0.001 0.002 0.0015"/>
+      </geometry>
+    </collision>
+  </link>
+</robot>

@@ -92,12 +92,19 @@
      <origin xyz="0 0 0" rpy="0 0 0" />          <!-- position robot in the world -->
    </xacro:ur_robot>
 
-   <xacro:include filename="$(find ur_description_custom)/urdf/end_eff_basic.xacro"/>
+   <!-- <xacro:include filename="$(find ur_description_custom)/urdf/end_eff_basic.xacro"/>
 
    <joint name="tool0_to_end_eff" type="fixed">
     <parent link="$(arg tf_prefix)tool0"/>
     <child link="end_eff_base_link"/>
     <origin xyz="-0.02 0 0.02" rpy="0 0 1.5708"/> 
+   </joint> -->
+
+   <xacro:include filename="$(find ur_description_custom)/urdf/end_eff_detailed.xacro"/>
+   <joint name="tool0_to_end_eff" type="fixed">
+    <parent link="$(arg tf_prefix)tool0"/>
+    <child link="$(arg tf_prefix)end_eff_base_link"/>
+    <origin xyz="-0.2 0.38 0.18" rpy="-1.5708 0 -1.5708"/>
    </joint>
 
    <xacro:if value="$(arg sim_gazebo)">
