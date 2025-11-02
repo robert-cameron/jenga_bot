@@ -19,4 +19,12 @@ sleep 5
 
 ros2 launch manipulation manipulation_launch.py
 
+
+# useful terminal commands 
+
+# pushing blocks
 # ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{action_type: 'push_move', pose: {position: {x: 0.45, y: 0.18, z: 0.275}, orientation: {x: 0.707107, y: 0.707107, z: 0.0, w: 0.0}}}"
+# ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{action_type: 'push_move', tf: 'block3'}"
+
+# make a tf
+# ros2 run tf2_ros static_transform_publisher 0.6 0.1 0.15 0 0 0 base_link block

@@ -16,6 +16,7 @@
 #include "./actions/free_move_action.hpp"
 #include "./actions/push_move_action.hpp"
 #include "./actions/linear_move_action.hpp"
+#include "./actions/approach_move_action.hpp"
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
 
@@ -26,18 +27,17 @@ class ManipulationNode : public rclcpp::Node
 {
 public:
   ManipulationNode()
-  : Node("manipulation_node", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)),
-    move_group_interface_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator"),
-    tf_buffer_(this->get_clock()),
-    tf_listener_(tf_buffer_)
+      : Node("manipulation_node", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)),
+        move_group_interface_(std::shared_ptr<rclcpp::Node>(this, [](auto *) {}), "ur_manipulator"),
+        tf_buffer_(this->get_clock()),
+        tf_listener_(tf_buffer_)
   {
     action_server_ = rclcpp_action::create_server<Manipulation>(
-      this,
-      "manipulation_action",
-      std::bind(&ManipulationNode::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
-      std::bind(&ManipulationNode::handle_cancel, this, std::placeholders::_1),
-      std::bind(&ManipulationNode::handle_accepted, this, std::placeholders::_1)
-    );
+        this,
+        "manipulation_action",
+        std::bind(&ManipulationNode::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
+        std::bind(&ManipulationNode::handle_cancel, this, std::placeholders::_1),
+        std::bind(&ManipulationNode::handle_accepted, this, std::placeholders::_1));
 
     move_group_interface_.setEndEffectorLink("end_eff_contact");
     move_group_interface_.setPlanningTime(15.0);
@@ -48,11 +48,10 @@ public:
 
 private:
   rclcpp_action::GoalResponse handle_goal(
-    const rclcpp_action::GoalUUID &,
-    std::shared_ptr<const Manipulation::Goal> goal)
+      const rclcpp_action::GoalUUID &,
+      std::shared_ptr<const Manipulation::Goal> goal)
   {
-    std::string source_info = goal->tf.empty() ?
-      "pose input" : "TF frame: " + goal->tf;
+    std::string source_info = goal->tf.empty() ? "pose input" : "TF frame: " + goal->tf;
     RCLCPP_INFO(this->get_logger(), "Received goal (%s) for action '%s'",
                 source_info.c_str(), goal->action_type.c_str());
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -76,32 +75,51 @@ private:
 
     geometry_msgs::msg::Pose target_pose;
 
-    if (!goal->tf.empty()) {
-      try {
+    if (!goal->tf.empty())
+    {
+      try
+      {
         geometry_msgs::msg::TransformStamped tf_stamped =
             tf_buffer_.lookupTransform("world", goal->tf, tf2::TimePointZero);
         tf2::doTransform(geometry_msgs::msg::Pose(), target_pose, tf_stamped);
-      } catch (tf2::TransformException &ex) {
+      }
+      catch (tf2::TransformException &ex)
+      {
         RCLCPP_ERROR(this->get_logger(), "TF lookup failed: %s", ex.what());
         auto result = std::make_shared<Manipulation::Result>();
         result->result = false;
         goal_handle->abort(result);
         return;
       }
-    } else {
+    }
+    else
+    {
       target_pose = goal->pose;
     }
 
     std::unique_ptr<BaseAction> action;
-    if (goal->action_type == "push_move") {
-      action = std::make_unique<PushMoveAction>();
-    } else if (goal->action_type == "free_move") {
+    if (goal->action_type == "push_move")
+    {
+      action = std::make_unique<PushMoveAction>(shared_from_this(), getEndEffectorPose());
+    }
+    else if (goal->action_type == "free_move")
+    {
       action = std::make_unique<FreeMoveAction>();
-    } else if (goal->action_type == "constrained_move") {
+    }
+    else if (goal->action_type == "constrained_move")
+    {
       action = std::make_unique<ConstrainedMoveAction>();
-    } else if (goal->action_type == "linear_move") {
+    }
+    else if (goal->action_type == "linear_move")
+    {
       action = std::make_unique<LinearMoveAction>();
-    } else {
+    }
+    else if (goal->action_type == "approach_move")
+    {
+      action = std::make_unique<ApproachMoveAction>(shared_from_this(), getEndEffectorPose());
+    }
+    else
+    {
       RCLCPP_ERROR(this->get_logger(), "Unknown action type: %s", goal->action_type.c_str());
       return;
     }
@@ -117,6 +135,29 @@ private:
       goal_handle->succeed(result);
     else
       goal_handle->abort(result);
+  }
+
+  geometry_msgs::msg::Pose getEndEffectorPose()
+  {
+    geometry_msgs::msg::Pose pose;
+    try
+    {
+      // Lookup the transform from world -> end_eff_contact
+      geometry_msgs::msg::TransformStamped tf_stamped =
+          tf_buffer_.lookupTransform("world", "end_eff_contact", tf2::TimePointZero);
+
+      // Convert Transform to Pose
+      pose.position.x = tf_stamped.transform.translation.x;
+      pose.position.y = tf_stamped.transform.translation.y;
+      pose.position.z = tf_stamped.transform.translation.z;
+      pose.orientation = tf_stamped.transform.rotation;
+    }
+    catch (tf2::TransformException &ex)
+    {
+      RCLCPP_ERROR(this->get_logger(), "Failed to get end effector pose: %s", ex.what());
+    }
+
+    return pose;
   }
 
   moveit_msgs::msg::Constraints setOrientationDownConstraint()
@@ -163,11 +204,11 @@ private:
     planning_scene_interface.applyCollisionObject(generateCollisionObject(0.04, 1.2, 1.0, -0.30, 0.25, 0.5, frame_id, "sideWall"));
     planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 2.4, 0.01, 0.85, 0.25, 0.013, frame_id, "table"));
     planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 2.4, 0.04, 0.85, 0.25, 1.2, frame_id, "ceiling"));
-    planning_scene_interface.applyCollisionObject(generateCollisionObject(0.10, 0.10, 0.4, 0.25, 0.25, 0.2, "world", "tower"));
-
+    // planning_scene_interface.applyCollisionObject(generateCollisionObject(0.10, 0.10, 0.4, 0.25, 0.25, 0.2, "world", "tower"));
   }
 
-  auto generateCollisionObject(float sx, float sy, float sz, float x, float y, float z, const std::string& frame_id, const std::string& id) -> moveit_msgs::msg::CollisionObject {
+  auto generateCollisionObject(float sx, float sy, float sz, float x, float y, float z, const std::string &frame_id, const std::string &id) -> moveit_msgs::msg::CollisionObject
+  {
     moveit_msgs::msg::CollisionObject collision_object;
     collision_object.header.frame_id = frame_id;
     collision_object.id = id;
