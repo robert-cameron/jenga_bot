@@ -19,4 +19,4 @@ sleep 5
 
 ros2 launch manipulation manipulation_launch.py
 
-# ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{action_type: 'push_move', block_pose: {position: {x: 0.45, y: 0.18, z: 0.275}, orientation: {x: 0.707107, y: 0.707107, z: 0.0, w: 0.0}}}"
+# ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{action_type: 'push_move', pose: {position: {x: 0.45, y: 0.18, z: 0.275}, orientation: {x: 0.707107, y: 0.707107, z: 0.0, w: 0.0}}}"

@@ -21,7 +21,7 @@ public:
     move_group.clearPathConstraints();
     move_group.setStartStateToCurrentState();
 
-    move_group.setPoseTarget(goal.block_pose);
+    move_group.setPoseTarget(goal.pose);
 
     moveit::planning_interface::MoveGroupInterface::Plan plan;
     bool success = (move_group.plan(plan) == moveit::core::MoveItErrorCode::SUCCESS);

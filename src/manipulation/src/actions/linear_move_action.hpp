@@ -24,7 +24,7 @@ public:
 
     std::vector<geometry_msgs::msg::Pose> waypoints;
     geometry_msgs::msg::Pose start_pose = move_group.getCurrentPose().pose;
-    geometry_msgs::msg::Pose target_pose = goal.block_pose;
+    geometry_msgs::msg::Pose target_pose = goal.pose;
 
     waypoints.push_back(start_pose);
     waypoints.push_back(target_pose);

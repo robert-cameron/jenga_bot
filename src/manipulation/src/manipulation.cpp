@@ -16,6 +16,8 @@
 #include "./actions/free_move_action.hpp"
 #include "./actions/push_move_action.hpp"
 #include "./actions/linear_move_action.hpp"
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
 
 using Manipulation = manipulation::action::Manipulation;
 using GoalHandleManipulation = rclcpp_action::ServerGoalHandle<Manipulation>;
@@ -25,7 +27,9 @@ class ManipulationNode : public rclcpp::Node
 public:
   ManipulationNode()
   : Node("manipulation_node", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)),
-    move_group_interface_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator")
+    move_group_interface_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator"),
+    tf_buffer_(this->get_clock()),
+    tf_listener_(tf_buffer_)
   {
     action_server_ = rclcpp_action::create_server<Manipulation>(
       this,
@@ -47,12 +51,10 @@ private:
     const rclcpp_action::GoalUUID &,
     std::shared_ptr<const Manipulation::Goal> goal)
   {
-    RCLCPP_INFO(this->get_logger(),
-                "Received goal: type='%s' pose=(%.2f, %.2f, %.2f)",
-                goal->action_type.c_str(),
-                goal->block_pose.position.x,
-                goal->block_pose.position.y,
-                goal->block_pose.position.z);
+    std::string source_info = goal->tf.empty() ?
+      "pose input" : "TF frame: " + goal->tf;
+    RCLCPP_INFO(this->get_logger(), "Received goal (%s) for action '%s'",
+                source_info.c_str(), goal->action_type.c_str());
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   }
 
@@ -71,8 +73,26 @@ private:
   void execute(const std::shared_ptr<GoalHandleManipulation> goal_handle)
   {
     const auto goal = goal_handle->get_goal();
-    std::unique_ptr<BaseAction> action;
 
+    geometry_msgs::msg::Pose target_pose;
+
+    if (!goal->tf.empty()) {
+      try {
+        geometry_msgs::msg::TransformStamped tf_stamped =
+            tf_buffer_.lookupTransform("world", goal->tf, tf2::TimePointZero);
+        tf2::doTransform(geometry_msgs::msg::Pose(), target_pose, tf_stamped);
+      } catch (tf2::TransformException &ex) {
+        RCLCPP_ERROR(this->get_logger(), "TF lookup failed: %s", ex.what());
+        auto result = std::make_shared<Manipulation::Result>();
+        result->result = false;
+        goal_handle->abort(result);
+        return;
+      }
+    } else {
+      target_pose = goal->pose;
+    }
+
+    std::unique_ptr<BaseAction> action;
     if (goal->action_type == "push_move") {
       action = std::make_unique<PushMoveAction>();
     } else if (goal->action_type == "free_move") {
@@ -86,7 +106,10 @@ private:
       return;
     }
 
-    bool success = action->execute(move_group_interface_, *goal, goal_handle);
+    auto new_goal = *goal;
+    new_goal.pose = target_pose;
+
+    bool success = action->execute(move_group_interface_, new_goal, goal_handle);
 
     auto result = std::make_shared<Manipulation::Result>();
     result->result = success;
@@ -166,8 +189,10 @@ private:
     return collision_object;
   }
 
-  rclcpp_action::Server<Manipulation>::SharedPtr action_server_;
   moveit::planning_interface::MoveGroupInterface move_group_interface_;
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
+  rclcpp_action::Server<Manipulation>::SharedPtr action_server_;
 };
 
 int main(int argc, char **argv)

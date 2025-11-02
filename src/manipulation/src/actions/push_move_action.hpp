@@ -38,12 +38,12 @@ public:
     feedback->feedback = "Computing push direction and target pose...";
     goal_handle->publish_feedback(feedback);
 
-    geometry_msgs::msg::Pose push_pose = goal.block_pose;
+    geometry_msgs::msg::Pose push_pose = goal.pose;
     tf2::Quaternion orientation;
     tf2::fromMsg(push_pose.orientation, orientation);
     orientation.normalize();
 
-    tf2::Vector3 forward_vector(0.0, 1.0, 0.0);
+    tf2::Vector3 forward_vector(1.0, 0.0, 0.0);
     tf2::Vector3 push_vector = tf2::quatRotate(orientation, forward_vector).normalized() * push_distance_;
 
     push_pose.position.x += push_vector.x();
@@ -51,7 +51,7 @@ public:
     push_pose.position.z += push_vector.z();
 
     manipulation::action::Manipulation::Goal push_goal = goal;
-    push_goal.block_pose = push_pose;
+    push_goal.pose = push_pose;
 
     rclcpp::sleep_for(std::chrono::seconds(1));
 

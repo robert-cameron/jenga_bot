@@ -1,6 +1,7 @@
 # Goal
 string action_type
-geometry_msgs/Pose block_pose
+geometry_msgs/Pose pose # <— optional (must include one of pose or tf)
+string tf  # <— optional
 
 ---
 # Result

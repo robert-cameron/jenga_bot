@@ -116,7 +116,7 @@ class Brain(Node):
 
         goal = Manipulation.Goal()
         goal.action_type = action_type
-        goal.block_pose = pose
+        goal.pose = pose
 
         def _goal_response_cb(fut):
             handle = fut.result()
