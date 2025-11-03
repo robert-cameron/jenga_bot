@@ -11,6 +11,7 @@ from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import TransformStamped, PointStamped, Pose, Point
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+from tf2_geometry_msgs import do_transform_point
 
 class objectDetect(Node):
 
@@ -85,8 +86,6 @@ class objectDetect(Node):
 
 
     def pixel_2_global(self, pixel_pt):
-        print(f"Pixel Point: {pixel_pt}")
-        print(f"Depth Image: {self.depth_image.shape}, Intrinsics: {self.intrinsics is not None}")
         try:
             if self.depth_image is not None and self.intrinsics is not None:
                 [x,y,z] = rs.rs2_deproject_pixel_to_point(self.intrinsics, (pixel_pt[0],pixel_pt[1] ), self.depth_image[pixel_pt[0],pixel_pt[1] ]*0.001)
@@ -111,6 +110,7 @@ class objectDetect(Node):
             return
         
         marker_positions = {}
+        marker_positions_image = {}
         marker_length = 0.05  # <-- meters (set this to your marker’s real side length)
 
         # Convert intrinsics to OpenCV format
@@ -144,12 +144,13 @@ class objectDetect(Node):
             y, x, z = pos
             self.get_logger().info(f"Marker {marker_id}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
             marker_positions[marker_id] = (x,y,z, quat[0], quat[1], quat[2], quat[3])
+            marker_positions_image[marker_id] = tuple(center)
 
             # Publish TF transform
             transform = TransformStamped()
             transform.header.stamp = self.get_clock().now().to_msg()
             transform.header.frame_id = "camera_color_optical_frame"
-            transform.child_frame_id = f"new_{marker_id}_frame"
+            transform.child_frame_id = f"aruco_{marker_id}"
             transform.transform.translation.x = x
             transform.transform.translation.y = y
             transform.transform.translation.z = z
@@ -162,63 +163,232 @@ class objectDetect(Node):
         print(marker_positions)
 
         # Compute intersection only if marker 1 and 2 are found
-        if 1 in marker_positions and 2 in marker_positions:
-            try:
-                tf1 = self.tf_buffer.lookup_transform(
-                    "camera_color_optical_frame", "new_1_frame", rclpy.time.Time()
-                )
-            except:
-                self.get_logger().warn("TF for marker 1 not available yet.")
-                return
+        if not (1 in marker_positions and 2 in marker_positions):
+            print("Markers 1 and 2 not both detected; skipping intersection computation.")
+            return
+        
+        try:
+            tf1 = self.tf_buffer.lookup_transform(
+                "camera_color_optical_frame", "aruco_1", rclpy.time.Time()
+            )
+        except:
+            self.get_logger().warn("TF for marker 1 not available yet.")
+            return
 
-            # Rotation matrix in WORLD FRAME
-            quat = [
-                tf1.transform.rotation.x,
-                tf1.transform.rotation.y,
-                tf1.transform.rotation.z,
-                tf1.transform.rotation.w
+        # Rotation matrix in WORLD FRAME
+        quat = [
+            tf1.transform.rotation.x,
+            tf1.transform.rotation.y,
+            tf1.transform.rotation.z,
+            tf1.transform.rotation.w
+        ]
+        R1 = self.quaternion_to_rotation_matrix(quat)[0:3, 0:3]
+
+        # World-aligned marker axes
+        right    = R1[:, 0]   # +X axis (red in RViz)
+        forward  = R1[:, 1]   # +Y axis (green in RViz)
+        vertical = R1[:, 2]   # +Z axis (blue in RViz)
+
+
+
+        # Marker positions (already in same world frame!)
+        x1, y1, z1, *_ = marker_positions[1]
+        x2, y2, z2, *_ = marker_positions[2]
+
+
+        # Compute intersection
+        direction = right + forward
+        direction = direction / np.linalg.norm(direction)
+
+        t = (y2 - y1) / direction[1]
+
+        distance = np.sqrt(((x2-x1)**2 + (y2-y1)**2)/2)
+
+        base_point = np.array([x1, y1, z1 ]) + right * distance
+        base_x, base_y, base_z = base_point.tolist()
+
+        self.get_logger().info(f"Intersection corrected: x={base_x:.3f}, y={base_y:.3f}, z={base_z:.3f}")
+        # Broadcast TF for intersection point
+        transform = TransformStamped()
+        transform.header.stamp = self.get_clock().now().to_msg()
+        transform.header.frame_id = "camera_color_optical_frame"
+        transform.child_frame_id = "tower_base_vision"
+        transform.transform.translation.x = base_x
+        transform.transform.translation.y = base_y
+        transform.transform.translation.z = base_z
+        transform.transform.rotation.x = tf1.transform.rotation.x
+        transform.transform.rotation.y = tf1.transform.rotation.y
+        transform.transform.rotation.z = tf1.transform.rotation.z
+        transform.transform.rotation.w = tf1.transform.rotation.w
+        self.tf_broadcaster.sendTransform(transform)
+
+        hsv = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
+
+        lower_green = np.array([35, 28, 77])
+        upper_green = np.array([86, 170, 113])
+
+        # Threshold the image to get only green colors
+        mask = cv2.inRange(hsv, lower_green, upper_green)
+
+        # Find contours of the green regions
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        area_height = 150  # You can adjust this value as needed
+        lowest_point = max(marker_positions_image[1][1], marker_positions_image[2][1])
+        left = min(marker_positions_image[1][0], marker_positions_image[2][0])
+        right_image = max(marker_positions_image[1][0], marker_positions_image[2][0])
+        area_top_left = (left - 20, lowest_point - area_height)
+        area_bottom_right = (right_image + 20, lowest_point)
+
+        cv2.rectangle(self.cv_image, area_top_left, area_bottom_right, (255, 0, 0), 2)
+
+        tower_width = 0.08  # meters
+        centre_offset = tower_width * 0.25  # meters
+
+        left_one = base_point - right * tower_width/2 + forward * centre_offset
+        left_two = base_point - right * tower_width/2
+        left_three = base_point - right * tower_width/2 - forward * centre_offset
+
+        right_one = base_point - forward * tower_width/2 + right * centre_offset
+        right_two = base_point - forward * tower_width/2
+        right_three = base_point - forward * tower_width/2 - right * centre_offset
+
+        positions = [left_one, left_two, left_three, right_one, right_two, right_three]
+
+        count = 0
+        for pos in positions:
+            count += 1
+            transformNew = TransformStamped()
+            transformNew.header.stamp = self.get_clock().now().to_msg()
+            transformNew.header.frame_id = "camera_color_optical_frame"
+            transformNew.child_frame_id = f"place_{count}"
+            x, y, z = pos.tolist()
+            print(f"Place position {count}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
+            transformNew.transform.translation.x = x
+            transformNew.transform.translation.y = y
+            transformNew.transform.translation.z = z
+            transformNew.transform.rotation.x = tf1.transform.rotation.x
+            transformNew.transform.rotation.y = tf1.transform.rotation.y
+            transformNew.transform.rotation.z = tf1.transform.rotation.z
+            transformNew.transform.rotation.w = tf1.transform.rotation.w
+            self.tf_broadcaster.sendTransform(transformNew)
+
+        # Draw bounding boxes around detected green regions
+        count = 0
+        for cnt in contours:
+            ix, iy, iw, ih = cv2.boundingRect(cnt)
+            if not (ix >= area_top_left[0] and ix + iw <= area_bottom_right[0] and
+                iy >= area_top_left[1] and iy + ih <= area_bottom_right[1]):
+                continue
+
+            center = (ix + iw // 2, iy + ih // 2)
+
+            pos = self.pixel_2_global(center[::-1])
+            if pos is None:
+                continue
+
+            y, x, z = pos
+            point_camera = PointStamped()
+            point_camera.header.stamp = self.get_clock().now().to_msg()
+            point_camera.header.frame_id = "camera_color_optical_frame"
+            point_camera.point.x = x
+            point_camera.point.y = y
+            point_camera.point.z = z
+
+            count += 1
+
+            place_positions = [
+                np.array(p) for p in positions
             ]
-            R1 = self.quaternion_to_rotation_matrix(quat)[0:3, 0:3]
 
-            # World-aligned marker axes
-            right = R1[:, 0]   # +X axis (red in RViz)
-            up    = R1[:, 1]   # +Y axis (green in RViz)
+            # object position in world frame
+            obj_world = np.array([x, y, z])
+
+            # Ensure axes are unit-length (in case numerical drift exists)
+            right_u   = right  / np.linalg.norm(right)
+            forward_u = forward / np.linalg.norm(forward)
+            vertical_u = vertical / np.linalg.norm(vertical)
+
+            # Vector from base (tower reference) to object
+            vec_obj = obj_world - base_point
+
+            # Project object vector into marker frame (right, forward, up)
+            obj_r = np.dot(vec_obj, right_u)
+            obj_f = np.dot(vec_obj, forward_u)
+            obj_u = np.dot(vec_obj, vertical_u)   # up (positive = above base_point along marker's z)
+
+            # Precompute placement positions in the same marker frame
+            place_rf = []
+            place_u_vals = []
+            for p in positions:
+                p = np.array(p)
+                vec_p = p - base_point
+                p_r = np.dot(vec_p, right_u)
+                p_f = np.dot(vec_p, forward_u)
+                p_u = np.dot(vec_p, vertical_u)
+                place_rf.append(np.array([p_r, p_f]))
+                place_u_vals.append(p_u)
+
+            # Compute distances in the RIGHT-FORWARD plane only
+            obj_rf = np.array([obj_r, obj_f])
+            dists = [np.linalg.norm(obj_rf - prf) for prf in place_rf]
+            closest_index = int(np.argmin(dists))
+            closest_prf = place_rf[closest_index]
+            closest_u = place_u_vals[closest_index]
+
+            # Height above the chosen placement (positive = object is above the placement)
+            height_above = obj_u - closest_u# object position in world frame
+            obj_world = np.array([x, y, z])
+
+            # Ensure axes are unit-length (in case numerical drift exists)
+            right_u   = right  / np.linalg.norm(right)
+            forward_u = forward / np.linalg.norm(forward)
+            vertical_u = vertical / np.linalg.norm(vertical)
+
+            # Vector from base (tower reference) to object
+            vec_obj = obj_world - base_point
+
+            # Project object vector into marker frame (right, forward, up)
+            obj_r = np.dot(vec_obj, right_u)
+            obj_f = np.dot(vec_obj, forward_u)
+            obj_u = np.dot(vec_obj, vertical_u)   # up (positive = above base_point along marker's z)
+
+            # Precompute placement positions in the same marker frame
+            place_rf = []
+            place_u_vals = []
+            for p in positions:
+                p = np.array(p)
+                vec_p = p - base_point
+                p_r = np.dot(vec_p, right_u)
+                p_f = np.dot(vec_p, forward_u)
+                p_u = np.dot(vec_p, vertical_u)
+                place_rf.append(np.array([p_r, p_f]))
+                place_u_vals.append(p_u)
+
+            # Compute distances in the RIGHT-FORWARD plane only
+            obj_rf = np.array([obj_r, obj_f])
+            dists = [np.linalg.norm(obj_rf - prf) for prf in place_rf]
+            closest_index = int(np.argmin(dists))
+            closest_prf = place_rf[closest_index]
+            closest_u = place_u_vals[closest_index]
+
+            # Height above the chosen placement (positive = object is above the placement)
+            height_above = obj_u - closest_u
+
+            if closest_index == 0 or closest_index == 3:
+                color = (255, 0, 255)  # Magenta for leftmost/rightmost
+            elif closest_index == 1 or closest_index == 4:
+                color = (0, 255, 255)  # Yellow for others  
+            else:
+                color = (255, 255, 0)  # Cyan for others
+            cv2.rectangle(self.cv_image, (ix, iy), (ix + iw, iy + ih), color, 2)
 
 
-
-            # Marker positions (already in same world frame!)
-            x1, y1, z1, *_ = marker_positions[1]
-            x2, y2, z2, *_ = marker_positions[2]
+        cv2.imshow('Image', self.cv_image)
+        cv2.waitKey(1)
 
 
-            # Compute intersection
-            direction = right + up
-            direction = direction / np.linalg.norm(direction)
-
-            t = (y2 - y1) / direction[1]
-            ix = x1 + t * direction[0]
-            iy = y1 + t * direction[1]
-            iz = z1 + t * direction[2]
-
-            distance = np.sqrt(((x2-x1)**2 + (y2-y1)**2)/2)
-
-            p_new = np.array([x1, y1, z1]) + right * distance
-            new_x, new_y, new_z = p_new.tolist()
-
-            self.get_logger().info(f"Intersection corrected: x={ix:.3f}, y={iy:.3f}, z={iz:.3f}")
-            # Broadcast TF for intersection point
-            transform = TransformStamped()
-            transform.header.stamp = self.get_clock().now().to_msg()
-            transform.header.frame_id = "camera_color_optical_frame"
-            transform.child_frame_id = "intersection_point"
-            transform.transform.translation.x = new_x
-            transform.transform.translation.y = new_y
-            transform.transform.translation.z = new_z
-            transform.transform.rotation.x = tf1.transform.rotation.x
-            transform.transform.rotation.y = tf1.transform.rotation.y
-            transform.transform.rotation.z = tf1.transform.rotation.z
-            transform.transform.rotation.w = tf1.transform.rotation.w
-            self.tf_broadcaster.sendTransform(transform)
+        
             
     def rotation_matrix_to_quaternion(self, R):
         """Convert a 3x3 rotation matrix to quaternion [x, y, z, w]."""
