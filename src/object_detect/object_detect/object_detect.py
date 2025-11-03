@@ -12,7 +12,9 @@ from geometry_msgs.msg import TransformStamped, PointStamped, Pose, Point
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from tf2_geometry_msgs import do_transform_point
-# from scipy.cluster.vq import kmeans
+from scipy.cluster.vq import kmeans2
+from scipy.cluster.hierarchy import linkage, fcluster
+
 
 class objectDetect(Node):
 
@@ -289,8 +291,12 @@ class objectDetect(Node):
             transformNew.transform.rotation.w = 1.0
             self.tf_broadcaster.sendTransform(transformNew)
 
+        positions_x_y = np.array([ [p[0], p[1]] for p in positions ])
+        points_x_y = np.empty((0, 2))
+        
+        points = []
+
         # Draw bounding boxes around detected green regions
-        count = 0
         for cnt in contours:
             ix, iy, iw, ih = cv2.boundingRect(cnt)
             if not (ix >= area_top_left[0] and ix + iw <= area_bottom_right[0] and
@@ -311,46 +317,66 @@ class objectDetect(Node):
             point_camera.point.y = y
             point_camera.point.z = z
 
-            count += 1
-
             point_in_tower = do_transform_point(point_camera, transform)
-            # self.get_logger().info(f"Point in tower_base_vision frame: {point_in_tower.point}")
 
-            # Convert transformed point to numpy
-            pt = np.array([point_in_tower.point.x, point_in_tower.point.y, point_in_tower.point.z])
+            points_x_y = np.append(points_x_y, [[point_in_tower.point.x, point_in_tower.point.y]], axis=0)
+            points.append(((point_in_tower.point.x, point_in_tower.point.y, point_in_tower.point.z), (ix, iy, iw, ih)))
 
-            print(f"{point_in_tower.point.x}, {point_in_tower.point.y}, {point_in_tower.point.z}")
+        kmeans_positions, labels = kmeans2(points_x_y, positions_x_y, iter=10)
 
-            # Compute distances in XY plane only
-            deltas = positions[:, :2] - pt[:2]      # subtract X,Y only
-            distances = np.linalg.norm(deltas, axis=1)
+        points_side_z = np.array([ [labels[i] <= 2, points[i][0][2]] for i in range(len(points)) ])
+        
+        # points_side_z: Nx2 -> [is_left_bool, z_value]
+        points_side_z = np.array(points_side_z)
 
-            # Find closest position index
-            closest_idx = np.argmin(distances)
-            closest_name = position_names[closest_idx]
-            closest_distance = distances[closest_idx]
-            z_height = pt[2]   # keep original Z
+        # Extract masks
+        left_mask = points_side_z[:, 0] == 1
+        right_mask = points_side_z[:, 0] == 0
 
-            # self.get_logger().info(
-            #     f"Closest position: {closest_name} | XY Distance: {closest_distance:.4f} m | Z Height: {z_height:.4f} m"
-            # )
+        # Extract Z values
+        left_Z_vals = points_side_z[left_mask][:, 1].reshape(-1, 1)
+        right_Z_vals = points_side_z[right_mask][:, 1].reshape(-1, 1)
 
-            if closest_idx == 0:
+        # Hierarchical clustering
+        left_linkage = linkage(left_Z_vals, method='ward')
+        right_linkage = linkage(right_Z_vals, method='ward')
+
+        # Instead of number of clusters, use a distance threshold
+        distance_threshold = 0.01  # meters; tweak depending on your tower
+        left_clusters = fcluster(left_linkage, distance_threshold, criterion='distance')
+        right_clusters = fcluster(right_linkage, distance_threshold, criterion='distance')
+
+        # Make an array that will hold final vertical cluster index for every original point
+        height_cluster_labels = np.zeros(len(points), dtype=int)
+
+        # Assign back to original indices
+        height_cluster_labels[left_mask] = left_clusters
+        height_cluster_labels[right_mask] = right_clusters
+
+        print("height cluster labels:", height_cluster_labels)
+
+        for i in range(len(points)):
+            (px, py, pz), (ix, iy, iw, ih) = points[i]
+            label = height_cluster_labels[i]
+            if label == 0:
                 color = (255, 0, 255)  # left_one - magenta
-            elif closest_idx == 1:
+            elif label == 1:
                 color = (0, 255, 255)  # left_two - yellow
-            elif closest_idx == 2:
+            elif label == 2:
                 color = (255, 255, 0)  # left_three - cyan
-            elif closest_idx == 3:
+            elif label == 3:
                 color = (255, 0, 0)  # right_one - blue
-            elif closest_idx == 4:
+            elif label == 4:
                 color = (0, 255, 0)  # right_two - green
             else:
                 color = (0, 0, 255)  # right_three - red
 
             cv2.rectangle(self.cv_image, (ix, iy), (ix + iw, iy + ih), color, 2)
 
-
+        print(labels)
+        print("KMeans positions:")
+        for km_pos in kmeans_positions:
+            print(f"x={km_pos[0]:.3f}, y={km_pos[1]:.3f}")
 
 
         cv2.imshow('Image', self.cv_image)
