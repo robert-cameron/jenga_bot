@@ -353,11 +353,53 @@ class objectDetect(Node):
         height_cluster_labels[left_mask] = left_clusters
         height_cluster_labels[right_mask] = right_clusters
 
+        # --- Compute representative Z per cluster ---
+        def compute_cluster_heights(z_values, cluster_labels):
+            cluster_heights = {}
+            for cluster_id in np.unique(cluster_labels):
+                cluster_heights[cluster_id] = np.mean(z_values[cluster_labels == cluster_id])
+            return cluster_heights
+
+        # Left side
+        left_cluster_heights = compute_cluster_heights(left_Z_vals.flatten(), left_clusters)
+        # Right side
+        right_cluster_heights = compute_cluster_heights(right_Z_vals.flatten(), right_clusters)
+
+        # Optional: Combine into single dict
+        all_cluster_heights = {}
+        for mask, clusters_dict in zip([left_mask, right_mask], [left_cluster_heights, right_cluster_heights]):
+            for i, cluster_id in enumerate(clusters_dict):
+                # Map cluster_id to Z value
+                all_cluster_heights[("left" if mask is left_mask else "right", cluster_id)] = clusters_dict[cluster_id]
+
+
         print("height cluster labels:", height_cluster_labels)
 
+        sorted_clusters = sorted(all_cluster_heights.items(), key=lambda item: item[1])
+        print("height cluster:", sorted_clusters)
+
+        cluster_order_map = { (side, cid): i for i, ((side, cid), _) in enumerate(sorted_clusters) }
+
+        tower_occupancy = {} 
+
         for i in range(len(points)):
-            (px, py, pz), (ix, iy, iw, ih) = points[i]
-            label = height_cluster_labels[i]
+            (_px, _py, _pz), (ix, iy, iw, ih) = points[i]
+            side = "left" if points_side_z[i, 0] == 1 else "right"
+            cluster_id = height_cluster_labels[i]
+
+            level = cluster_order_map[(side, cluster_id)]
+            level_occupancy = tower_occupancy.get((level, 0))
+            if level_occupancy is None:
+                level_occupancy = {
+                    "side": side,
+                    "occupancy": [False, False, False]  # three positions per side
+                }
+            
+            pos = labels[i] % 3
+            level_occupancy["occupancy"][pos] = True
+            tower_occupancy[(level, 0)] = level_occupancy
+
+            label = labels[i]
             if label == 0:
                 color = (255, 0, 255)  # left_one - magenta
             elif label == 1:
@@ -372,6 +414,13 @@ class objectDetect(Node):
                 color = (0, 0, 255)  # right_three - red
 
             cv2.rectangle(self.cv_image, (ix, iy), (ix + iw, iy + ih), color, 2)
+
+        print("Tower Occupancy:")
+        for level_key in sorted(tower_occupancy.keys()):
+            level_info = tower_occupancy[level_key]
+            side = level_info["side"]
+            occupancy = level_info["occupancy"]
+            print(f" Level {level_key[0]} ({side}): {occupancy}")
 
         print(labels)
         print("KMeans positions:")
