@@ -243,11 +243,12 @@ class objectDetect(Node):
         cv2.rectangle(self.cv_image, area_top_left, area_bottom_right, (255, 0, 0), 2)
 
         tower_width = 0.08  # meters
-        centre_offset = tower_width * 0.25  # meters
+        centre_offset = tower_width * 0.15  # meters
+        left_offset = -0.0  # meters
 
-        left_one = base_point - right * tower_width/2 + forward * centre_offset
-        left_two = base_point - right * tower_width/2
-        left_three = base_point - right * tower_width/2 - forward * centre_offset
+        left_one =   base_point - right * tower_width/2 + forward * centre_offset + forward * left_offset
+        left_two =   base_point - right * tower_width/2                           + forward * left_offset
+        left_three = base_point - right * tower_width/2 - forward * centre_offset + forward * left_offset
 
         right_one = base_point - forward * tower_width/2 + right * centre_offset
         right_two = base_point - forward * tower_width/2
@@ -297,91 +298,110 @@ class objectDetect(Node):
 
             count += 1
 
-            place_positions = [
-                np.array(p) for p in positions
-            ]
-
-            # object position in world frame
             obj_world = np.array([x, y, z])
 
-            # Ensure axes are unit-length (in case numerical drift exists)
-            right_u   = right  / np.linalg.norm(right)
+            right_u   = right   / np.linalg.norm(right)
             forward_u = forward / np.linalg.norm(forward)
             vertical_u = vertical / np.linalg.norm(vertical)
 
-            # Vector from base (tower reference) to object
-            vec_obj = obj_world - base_point
-
-            # Project object vector into marker frame (right, forward, up)
-            obj_r = np.dot(vec_obj, right_u)
-            obj_f = np.dot(vec_obj, forward_u)
-            obj_u = np.dot(vec_obj, vertical_u)   # up (positive = above base_point along marker's z)
-
-            # Precompute placement positions in the same marker frame
-            place_rf = []
-            place_u_vals = []
-            for p in positions:
+            place_info = []  # list of dicts: {idx, r, f, u, world}
+            for i, p in enumerate(positions):
                 p = np.array(p)
                 vec_p = p - base_point
-                p_r = np.dot(vec_p, right_u)
-                p_f = np.dot(vec_p, forward_u)
-                p_u = np.dot(vec_p, vertical_u)
-                place_rf.append(np.array([p_r, p_f]))
-                place_u_vals.append(p_u)
+                p_r = float(np.dot(vec_p, right_u))
+                p_f = float(np.dot(vec_p, forward_u))
+                p_u = float(np.dot(vec_p, vertical_u))
+                place_info.append({"idx": i, "r": p_r, "f": p_f, "u": p_u, "world": p})
 
-            # Compute distances in the RIGHT-FORWARD plane only
-            obj_rf = np.array([obj_r, obj_f])
-            dists = [np.linalg.norm(obj_rf - prf) for prf in place_rf]
-            closest_index = int(np.argmin(dists))
-            closest_prf = place_rf[closest_index]
-            closest_u = place_u_vals[closest_index]
+            # Sort placements by r (left <-> right) and split by median r
+            place_info_sorted_by_r = sorted(place_info, key=lambda x: x["r"])
+            # lower 3 -> one side, upper 3 -> other side (works regardless of sign)
+            left_side = place_info_sorted_by_r[:3]
+            right_side = place_info_sorted_by_r[3:]
 
-            # Height above the chosen placement (positive = object is above the placement)
-            height_above = obj_u - closest_u# object position in world frame
-            obj_world = np.array([x, y, z])
+            # On each side, sort by forward (f) descending so front-most -> index 1
+            left_side_sorted = sorted(left_side, key=lambda x: x["f"], reverse=True)
+            right_side_sorted = sorted(right_side, key=lambda x: x["f"], reverse=True)
 
-            # Ensure axes are unit-length (in case numerical drift exists)
-            right_u   = right  / np.linalg.norm(right)
-            forward_u = forward / np.linalg.norm(forward)
-            vertical_u = vertical / np.linalg.norm(vertical)
+            # Build mapping: slot_name -> placement dict
+            slot_map = {}
+            for i, slot in enumerate(left_side_sorted):
+                # left_1 = front-most, left_3 = back-most
+                slot_map[f"left_{i+1}"] = slot
+                slot["slot_name"] = f"left_{i+1}"
+            for i, slot in enumerate(right_side_sorted):
+                slot_map[f"right_{i+1}"] = slot
+                slot["slot_name"] = f"right_{i+1}"
 
-            # Vector from base (tower reference) to object
+            # Debug: print mapping
+            self.get_logger().info("Placement mapping (slot -> r,f,u):")
+            for name, info in slot_map.items():
+                self.get_logger().info(f"{name}: r={info['r']:.3f}, f={info['f']:.3f}, u={info['u']:.3f}, idx={info['idx']}")
+
+            # Project the detected object into marker frame
             vec_obj = obj_world - base_point
-
-            # Project object vector into marker frame (right, forward, up)
-            obj_r = np.dot(vec_obj, right_u)
-            obj_f = np.dot(vec_obj, forward_u)
-            obj_u = np.dot(vec_obj, vertical_u)   # up (positive = above base_point along marker's z)
-
-            # Precompute placement positions in the same marker frame
-            place_rf = []
-            place_u_vals = []
-            for p in positions:
-                p = np.array(p)
-                vec_p = p - base_point
-                p_r = np.dot(vec_p, right_u)
-                p_f = np.dot(vec_p, forward_u)
-                p_u = np.dot(vec_p, vertical_u)
-                place_rf.append(np.array([p_r, p_f]))
-                place_u_vals.append(p_u)
-
-            # Compute distances in the RIGHT-FORWARD plane only
+            obj_r = float(np.dot(vec_obj, right_u))
+            obj_f = float(np.dot(vec_obj, forward_u))
+            obj_u = float(np.dot(vec_obj, vertical_u))
             obj_rf = np.array([obj_r, obj_f])
-            dists = [np.linalg.norm(obj_rf - prf) for prf in place_rf]
-            closest_index = int(np.argmin(dists))
-            closest_prf = place_rf[closest_index]
-            closest_u = place_u_vals[closest_index]
 
-            # Height above the chosen placement (positive = object is above the placement)
-            height_above = obj_u - closest_u
+            # Find the closest placement by RF distance
+            best_name = None
+            best_info = None
+            best_dist = float("inf")
+            for name, info in slot_map.items():
+                prf = np.array([info["r"], info["f"]])
+                d = np.linalg.norm(obj_rf - prf)
+                if d < best_dist:
+                    best_dist = d
+                    best_name = name
+                    best_info = info
 
-            if closest_index == 0 or closest_index == 3:
-                color = (255, 0, 255)  # Magenta for leftmost/rightmost
-            elif closest_index == 1 or closest_index == 4:
-                color = (0, 255, 255)  # Yellow for others  
-            else:
-                color = (255, 255, 0)  # Cyan for others
+            # Height above chosen placement (positive = object higher than placement)
+            height_above = obj_u - best_info["u"]
+
+            self.get_logger().info(f"Detected assigned to: {best_name}, RF-dist={best_dist:.4f}, height_above={height_above:.4f}")
+
+            # Color-coding by slot (optional)
+            # produce a color unique per slot (example mapping)
+            color_map = {
+                "left_1": (255,0,255), # magenta
+                "left_2": (0,255,255), # cyan
+                "left_3": (255,255,0), # yellow
+                "right_1": (255,0,0), # red
+                "right_2": (0,255,0), # green
+                "right_3": (0,0,255), # blue
+            }
+            color = color_map.get(best_name, (0,255,0))
             cv2.rectangle(self.cv_image, (ix, iy), (ix + iw, iy + ih), color, 2)
+            cv2.putText(self.cv_image, f"{best_name}", (ix, iy-6), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+            # OPTIONAL: draw small labels for all placement slots on the image to debug
+            for name, info in slot_map.items():
+                # convert world point back to pixel to annotate -- you already have intrinsics/depth -> use project
+                # Using rs2_project_point_to_pixel requires point in camera coords; we only have world (camera frame), so:
+                # If base_point and positions are in camera frame (they are), we can project directly:
+                px = int(np.round(self.intrinsics.ppx + (info["world"][0] * self.intrinsics.fx / max(info["world"][2], 1e-6))))
+                py = int(np.round(self.intrinsics.ppy + (info["world"][1] * self.intrinsics.fy / max(info["world"][2], 1e-6))))
+                cv2.circle(self.cv_image, (px, py), 4, (0,0,0), -1)
+                cv2.putText(self.cv_image, name, (px+4, py-4), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0,0,0), 1)
+
+            # OPTIONAL: draw marker axes (right=red, forward=green, up=blue) from base_point
+            axis_scale_px = 80  # length to draw on image
+            base_px = ( int(np.round(self.intrinsics.ppx + (base_point[0]*self.intrinsics.fx / max(base_point[2],1e-6)))),
+                        int(np.round(self.intrinsics.ppy + (base_point[1]*self.intrinsics.fy / max(base_point[2],1e-6)))) )
+            r_end_world = base_point + right_u * 0.08
+            f_end_world = base_point + forward_u * 0.08
+            u_end_world = base_point + vertical_u * 0.08
+            def world_to_px(world_pt):
+                return ( int(np.round(self.intrinsics.ppx + (world_pt[0]*self.intrinsics.fx / max(world_pt[2],1e-6)))),
+                        int(np.round(self.intrinsics.ppy + (world_pt[1]*self.intrinsics.fy / max(world_pt[2],1e-6)))) )
+            r_px = world_to_px(r_end_world)
+            f_px = world_to_px(f_end_world)
+            u_px = world_to_px(u_end_world)
+            cv2.line(self.cv_image, base_px, r_px, (0,0,255), 2)  # right=red
+            cv2.line(self.cv_image, base_px, f_px, (0,255,0), 2)  # forward=green
+            cv2.line(self.cv_image, base_px, u_px, (255,0,0), 2)  # up=blue
 
 
         cv2.imshow('Image', self.cv_image)
