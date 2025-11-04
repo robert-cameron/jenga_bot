@@ -6,23 +6,23 @@ from launch_ros.substitutions import FindPackageShare
 
 def get_robot_description():
     joint_limit_params = PathJoinSubstitution(
-        [FindPackageShare("ur_description"), "config", "ur5e", "joint_limits.yaml"]
+        [FindPackageShare("ur_description_custom"), "config", "ur5e", "joint_limits.yaml"]
     )
     kinematics_params = PathJoinSubstitution(
-        [FindPackageShare("ur_description"), "config", "ur5e", "default_kinematics.yaml"]
+        [FindPackageShare("ur_description_custom"), "config", "ur5e", "default_kinematics.yaml"]
     )
     physical_params = PathJoinSubstitution(
-        [FindPackageShare("ur_description"), "config", "ur5e", "physical_parameters.yaml"]
+        [FindPackageShare("ur_description_custom"), "config", "ur5e", "physical_parameters.yaml"]
     )
     visual_params = PathJoinSubstitution(
-        [FindPackageShare("ur_description"), "config", "ur5e", "visual_parameters.yaml"]
+        [FindPackageShare("ur_description_custom"), "config", "ur5e", "visual_parameters.yaml"]
     )
 
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution([FindPackageShare("ur_description"), "urdf", "ur.urdf.xacro"]),
+            PathJoinSubstitution([FindPackageShare("ur_description_custom"), "urdf", "ur.urdf.xacro"]),
             " ",
             "robot_ip:=172.17.0.2 ",
             "joint_limit_params:=", joint_limit_params, " ",
@@ -47,7 +47,7 @@ def get_robot_description_semantic():
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
-            PathJoinSubstitution([FindPackageShare("ur_moveit_config"), "srdf", "ur.srdf.xacro"]),
+            PathJoinSubstitution([FindPackageShare("ur_moveit_config_custom"), "srdf", "ur.srdf.xacro"]),
             " ",
             "name:=ur ",
             "prefix:=",

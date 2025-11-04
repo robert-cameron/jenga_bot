@@ -13,6 +13,12 @@
 #include <moveit_msgs/msg/position_constraint.hpp>
 #include <shape_msgs/msg/solid_primitive.hpp>
 #include "manipulation/action/manipulation.hpp"
+#include "./actions/free_move_action.hpp"
+#include "./actions/push_move_action.hpp"
+#include "./actions/linear_move_action.hpp"
+#include "./actions/approach_move_action.hpp"
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
 
 using Manipulation = manipulation::action::Manipulation;
 using GoalHandleManipulation = rclcpp_action::ServerGoalHandle<Manipulation>;
@@ -21,17 +27,19 @@ class ManipulationNode : public rclcpp::Node
 {
 public:
   ManipulationNode()
-  : Node("manipulation_node", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)),
-    move_group_interface_(std::shared_ptr<rclcpp::Node>(this, [](auto*){}), "ur_manipulator")
+      : Node("manipulation_node", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)),
+        move_group_interface_(std::shared_ptr<rclcpp::Node>(this, [](auto *) {}), "ur_manipulator"),
+        tf_buffer_(this->get_clock()),
+        tf_listener_(tf_buffer_)
   {
     action_server_ = rclcpp_action::create_server<Manipulation>(
-      this,
-      "manipulation_action",
-      std::bind(&ManipulationNode::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
-      std::bind(&ManipulationNode::handle_cancel, this, std::placeholders::_1),
-      std::bind(&ManipulationNode::handle_accepted, this, std::placeholders::_1)
-    );
+        this,
+        "manipulation_action",
+        std::bind(&ManipulationNode::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
+        std::bind(&ManipulationNode::handle_cancel, this, std::placeholders::_1),
+        std::bind(&ManipulationNode::handle_accepted, this, std::placeholders::_1));
 
+    move_group_interface_.setEndEffectorLink("end_eff_contact");
     move_group_interface_.setPlanningTime(15.0);
     move_group_interface_.setNumPlanningAttempts(30);
     move_group_interface_.setPlannerId("LBKPIECEkConfigDefault");
@@ -40,15 +48,12 @@ public:
 
 private:
   rclcpp_action::GoalResponse handle_goal(
-    const rclcpp_action::GoalUUID &,
-    std::shared_ptr<const Manipulation::Goal> goal)
+      const rclcpp_action::GoalUUID &,
+      std::shared_ptr<const Manipulation::Goal> goal)
   {
-    RCLCPP_INFO(this->get_logger(),
-                "Received goal: type='%s' pose=(%.2f, %.2f, %.2f)",
-                goal->action_type.c_str(),
-                goal->block_pose.position.x,
-                goal->block_pose.position.y,
-                goal->block_pose.position.z);
+    std::string source_info = goal->tf.empty() ? "pose input" : "TF frame: " + goal->tf;
+    RCLCPP_INFO(this->get_logger(), "Received goal (%s) for action '%s'",
+                source_info.c_str(), goal->action_type.c_str());
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   }
 
@@ -67,59 +72,92 @@ private:
   void execute(const std::shared_ptr<GoalHandleManipulation> goal_handle)
   {
     const auto goal = goal_handle->get_goal();
-    auto feedback = std::make_shared<Manipulation::Feedback>();
-    auto result   = std::make_shared<Manipulation::Result>();
 
-    feedback->feedback = "Starting motion planning...";
-    goal_handle->publish_feedback(feedback);
+    geometry_msgs::msg::Pose target_pose;
 
-    if (goal->action_type != "free_move") {
-      moveit_msgs::msg::Constraints constraints;
-
-      //constraints.orientation_constraints.push_back(setOrientationDownConstraint().orientation_constraints[0]);
-
-      constraints.joint_constraints.push_back(
-        createJointConstraint("shoulder_pan_joint", 0.785398, 0.785398, 0.785398, 1.0));
-      constraints.joint_constraints.push_back(
-        createJointConstraint("shoulder_lift_joint", -1.0472, 0.523599, 0.523599, 1.0));
-      constraints.joint_constraints.push_back(
-        createJointConstraint("elbow_joint", 1.5708, 0.785398, 0.785398, 1.0));
-      constraints.joint_constraints.push_back(
-        createJointConstraint("wrist_1_joint", -1.5708, 0.785398, 0.785398, 1.0));
-      constraints.joint_constraints.push_back(
-        createJointConstraint("wrist_2_joint", -1.5708, 0.3, 0.3, 1.0));
-      // constraints.joint_constraints.push_back(
-      //   createJointConstraint("wrist_3_joint", 0, 1.5708, 1.5708, 1.0));
-
-      move_group_interface_.setPathConstraints(constraints);
-    } else {
-      move_group_interface_.clearPathConstraints();
+    if (!goal->tf.empty())
+    {
+      try
+      {
+        geometry_msgs::msg::TransformStamped tf_stamped =
+            tf_buffer_.lookupTransform("world", goal->tf, tf2::TimePointZero);
+        tf2::doTransform(geometry_msgs::msg::Pose(), target_pose, tf_stamped);
+      }
+      catch (tf2::TransformException &ex)
+      {
+        RCLCPP_ERROR(this->get_logger(), "TF lookup failed: %s", ex.what());
+        auto result = std::make_shared<Manipulation::Result>();
+        result->result = false;
+        goal_handle->abort(result);
+        return;
+      }
+    }
+    else
+    {
+      target_pose = goal->pose;
     }
 
-    move_group_interface_.setStartStateToCurrentState();
+    std::unique_ptr<BaseAction> action;
+    if (goal->action_type == "push_move")
+    {
+      action = std::make_unique<PushMoveAction>(shared_from_this(), getEndEffectorPose());
+    }
+    else if (goal->action_type == "free_move")
+    {
+      action = std::make_unique<FreeMoveAction>();
+    }
+    else if (goal->action_type == "constrained_move")
+    {
+      action = std::make_unique<ConstrainedMoveAction>();
+    }
+    else if (goal->action_type == "linear_move")
+    {
+      action = std::make_unique<LinearMoveAction>();
+    }
+    else if (goal->action_type == "approach_move")
+    {
+      action = std::make_unique<ApproachMoveAction>(shared_from_this(), getEndEffectorPose());
+    }
+    else
+    {
+      RCLCPP_ERROR(this->get_logger(), "Unknown action type: %s", goal->action_type.c_str());
+      return;
+    }
 
-    move_group_interface_.setPoseTarget(goal->block_pose);
+    auto new_goal = *goal;
+    new_goal.pose = target_pose;
 
-    moveit::planning_interface::MoveGroupInterface::Plan plan;
-    bool success = (move_group_interface_.plan(plan) == moveit::core::MoveItErrorCode::SUCCESS);
+    bool success = action->execute(move_group_interface_, new_goal, goal_handle);
 
-    if (success) {
-      feedback->feedback = "Plan found. Executing...";
-      goal_handle->publish_feedback(feedback);
-      move_group_interface_.execute(plan);
-      feedback->feedback = "Motion complete.";
-      goal_handle->publish_feedback(feedback);
-      result->result = true;
+    auto result = std::make_shared<Manipulation::Result>();
+    result->result = success;
+    if (success)
       goal_handle->succeed(result);
-    } else {
-      feedback->feedback = "Planning failed.";
-      goal_handle->publish_feedback(feedback);
-      result->result = false;
+    else
       goal_handle->abort(result);
+  }
+
+  geometry_msgs::msg::Pose getEndEffectorPose()
+  {
+    geometry_msgs::msg::Pose pose;
+    try
+    {
+      // Lookup the transform from world -> end_eff_contact
+      geometry_msgs::msg::TransformStamped tf_stamped =
+          tf_buffer_.lookupTransform("world", "end_eff_contact", tf2::TimePointZero);
+
+      // Convert Transform to Pose
+      pose.position.x = tf_stamped.transform.translation.x;
+      pose.position.y = tf_stamped.transform.translation.y;
+      pose.position.z = tf_stamped.transform.translation.z;
+      pose.orientation = tf_stamped.transform.rotation;
+    }
+    catch (tf2::TransformException &ex)
+    {
+      RCLCPP_ERROR(this->get_logger(), "Failed to get end effector pose: %s", ex.what());
     }
 
-    move_group_interface_.clearPoseTargets();
-    move_group_interface_.clearPathConstraints();
+    return pose;
   }
 
   moveit_msgs::msg::Constraints setOrientationDownConstraint()
@@ -162,14 +200,15 @@ private:
 
     std::string frame_id = move_group_interface_.getPlanningFrame();
 
-
-    planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 0.04, 3.0, 0.70, -0.60, 0.5, frame_id, "backWall"));
-    planning_scene_interface.applyCollisionObject(generateCollisionObject(0.04, 2.4, 3.0, -0.55, 0.25, 0.8, frame_id, "sideWall"));
-    planning_scene_interface.applyCollisionObject(generateCollisionObject(3, 3, 0.01, 0.85, 0.25, 0.05, frame_id, "table"));
-    planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 2.4, 0.04, 0.85, 0.25, 1.5, frame_id, "ceiling"));
+    planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 0.04, 1.0, 0.85, -0.30, 0.5, frame_id, "backWall"));
+    planning_scene_interface.applyCollisionObject(generateCollisionObject(0.04, 1.2, 1.0, -0.30, 0.25, 0.5, frame_id, "sideWall"));
+    planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 2.4, 0.01, 0.85, 0.25, 0.013, frame_id, "table"));
+    planning_scene_interface.applyCollisionObject(generateCollisionObject(2.4, 2.4, 0.04, 0.85, 0.25, 1.2, frame_id, "ceiling"));
+    // planning_scene_interface.applyCollisionObject(generateCollisionObject(0.10, 0.10, 0.4, 0.25, 0.25, 0.2, "world", "tower"));
   }
 
-    auto generateCollisionObject(float sx, float sy, float sz, float x, float y, float z, const std::string& frame_id, const std::string& id) -> moveit_msgs::msg::CollisionObject {
+  auto generateCollisionObject(float sx, float sy, float sz, float x, float y, float z, const std::string &frame_id, const std::string &id) -> moveit_msgs::msg::CollisionObject
+  {
     moveit_msgs::msg::CollisionObject collision_object;
     collision_object.header.frame_id = frame_id;
     collision_object.id = id;
@@ -191,8 +230,10 @@ private:
     return collision_object;
   }
 
-  rclcpp_action::Server<Manipulation>::SharedPtr action_server_;
   moveit::planning_interface::MoveGroupInterface move_group_interface_;
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
+  rclcpp_action::Server<Manipulation>::SharedPtr action_server_;
 };
 
 int main(int argc, char **argv)
