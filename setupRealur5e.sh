@@ -1,4 +1,8 @@
-gnome-terminal -t "DriverServer" -e 'ros2 launch ur_robot_driver ur_control.launch.py \
+source /opt/ros/humble/setup.bash
+colcon build
+source install/setup.bash
+
+gnome-terminal --tab -t "DriverServer" -e 'ros2 launch ur_robot_driver ur_control.launch.py \
     ur_type:=ur5e \
     robot_ip:=192.168.0.100 \
     initial_joint_controller:=joint_trajectory_controller \
@@ -9,7 +13,7 @@ gnome-terminal -t "DriverServer" -e 'ros2 launch ur_robot_driver ur_control.laun
 
 sleep 10
 
-gnome-terminal -t "MoveitServer" -e 'ros2 launch ur_moveit_config_custom ur_moveit.launch.py \
+gnome-terminal --tab -t "MoveitServer" -e 'ros2 launch ur_moveit_config_custom ur_moveit.launch.py \
     robot_ip:=192.168.0.100 \
     ur_type:=ur5e \
     launch_rviz:=true \
@@ -19,7 +23,7 @@ gnome-terminal -t "MoveitServer" -e 'ros2 launch ur_moveit_config_custom ur_move
 
 sleep 10
 
-ros2 launch manipulation manipulation_launch.py
+gnome-terminal --tab -t "ManipulationServer" -e 'ros2 launch manipulation manipulation_launch.py'
 
 # useful terminal commands 
 
