@@ -2,7 +2,7 @@
 #include <Servo.h>
 
 // ----------------------------
-//  Prongs Servo Controller (Degrees + Force Sensor + Opposite Rotation)
+//  Prongs Controller (Degree-based; cp + cf presets)
 // ----------------------------
 
 // ---- Pins ----
@@ -10,34 +10,63 @@ const int leftServoPin  = 9;
 const int rightServoPin = 10;
 const int FORCE_PIN     = A0;
 
-// ---- Servo calibration ----
-//  Tune these so that the claw fully opens/closes correctly.
-float leftDeg   = 90.0f;   // starting position
-float rightDeg  = 90.0f;
+// ---- Servo calibration (set these manually) ----
+// Physical servo angles for each state
+int leftOpenDeg        = 150;
+int leftCloseBlockDeg  = 55;   // partial close (block grip)
+int leftCloseFullDeg   = 0;   // full close
 
-int leftOpenDeg   = 60;    // smaller angle for open
-int leftCloseDeg  = 120;   // larger angle for close
-int rightOpenDeg  = 120;   // larger angle for open
-int rightCloseDeg = 60;    // smaller angle for close
+int rightOpenDeg       = 30;
+int rightCloseBlockDeg = 115;    // partial close (block grip)
+int rightCloseFullDeg  = 180;     // full close
 
 // ---- Motion behaviour ----
-const float RATE_DEG_PER_SEC = 200.0f;   // how fast to move continuously
-int motion_dir = 0;                      // +1=open, -1=close, 0=stop
+const float DEG_RATE_PER_SEC = 200.0f;  // speed of servo movement (deg/s)
+float leftTargetDeg  = leftOpenDeg;
+float rightTargetDeg = rightOpenDeg;
+float leftCurrentDeg = leftOpenDeg;
+float rightCurrentDeg = rightOpenDeg;
 unsigned long lastUpdateMs = 0;
 
 // ---- Force Sensor config ----
-const float ADC_REF = 5.0f;  // reference voltage (5V)
+const float ADC_REF = 5.0f;
 bool  g_invert = true;       // true if no-touch = 5V
 float g_V0 = 4.90f;          // no-load voltage
 float g_V1 = 2.00f;          // loaded voltage
 float g_G1 = 500.0f;         // grams at V1
 
-// ---- Communication buffers ----
+// ---- Comm ----
 Servo leftServo, rightServo;
 char cmdBuf[32];
 uint8_t cmdLen = 0;
 unsigned long lastRxMs = 0;
 const unsigned long CMD_IDLE_FLUSH_MS = 100;
+
+// ----------------------------
+//  Helpers
+// ----------------------------
+static inline float clampf(float v, float a, float b) {
+  if (v < a) return a;
+  if (v > b) return b;
+  return v;
+}
+
+void moveServos(float lDeg, float rDeg) {
+  lDeg = clampf(lDeg, 0, 180);
+  rDeg = clampf(rDeg, 0, 180);
+  leftServo.write(lDeg);
+  rightServo.write(rDeg);
+  leftCurrentDeg  = lDeg;
+  rightCurrentDeg = rDeg;
+  // Serial.print("L="); Serial.print(lDeg); Serial.print("  R="); Serial.println(rDeg);
+}
+
+void setTargetAngles(float lDeg, float rDeg) {
+  leftTargetDeg  = clampf(lDeg, 0, 180);
+  rightTargetDeg = clampf(rDeg, 0, 180);
+  Serial.print(F("Target → L: ")); Serial.print(leftTargetDeg);
+  Serial.print(F("  R: ")); Serial.println(rightTargetDeg);
+}
 
 // ----------------------------
 //  Force Sensor
@@ -49,16 +78,14 @@ float readForceSensor(bool verbose = false) {
   float adc   = sum / float(N);
   float volts = adc * (ADC_REF / 1023.0f);
 
-  // invert reading if no-touch is high
   float vAdj = g_invert ? (ADC_REF - volts) : volts;
 
-  // linear mapping from (V0, 0g) → (V1, G1)
+  float v0 = g_invert ? (ADC_REF - g_V0) : g_V0;
+  float v1 = g_invert ? (ADC_REF - g_V1) : g_V1;
   float grams = 0.0f;
-  float denom = (g_V1 - g_V0);
+  float denom = (v1 - v0);
   if (fabs(denom) > 1e-3f) {
-    grams = (vAdj - (g_invert ? (ADC_REF - g_V0) : g_V0)) *
-            (g_G1 / ((g_invert ? (ADC_REF - g_V1) : g_V1) -
-                     (g_invert ? (ADC_REF - g_V0) : g_V0)));
+    grams = (vAdj - v0) * (g_G1 / denom);
     if (grams < 0) grams = 0;
   }
 
@@ -70,55 +97,34 @@ float readForceSensor(bool verbose = false) {
 }
 
 // ----------------------------
-//  Servo Motion
-// ----------------------------
-void moveServos(float lDeg, float rDeg) {
-  // Opposite rotation mapping
-  lDeg = constrain(lDeg, 0, 180);
-  rDeg = constrain(rDeg, 0, 180);
-
-  // The key: right servo should mirror left (opposite direction)
-  leftServo.write(lDeg);
-  rightServo.write(180 - rDeg);
-
-  Serial.print(F("L=")); Serial.print(lDeg, 1);
-  Serial.print(F("  R=")); Serial.println(180 - rDeg, 1);
-
-  leftDeg = lDeg;
-  rightDeg = rDeg;
-}
-
-// ----------------------------
 //  Command Handler
 // ----------------------------
 void handleCommand(const char *cmd) {
-  if (!strcmp(cmd, "o")) { 
-    motion_dir = +1;
+  if (!strcmp(cmd, "o")) {               // Open
+    setTargetAngles(leftOpenDeg, rightOpenDeg);
     Serial.println(F("Opening..."));
     return;
   }
-  if (!strcmp(cmd, "c")) { 
-    motion_dir = -1;
-    Serial.println(F("Closing..."));
+  if (!strcmp(cmd, "cp")) {              // Close for block
+    setTargetAngles(leftCloseBlockDeg, rightCloseBlockDeg);
+    Serial.println(F("Closing (block grip)..."));
     return;
   }
-  if (!strcmp(cmd, "s")) { 
-    motion_dir = 0;
-    Serial.println(F("Stopped."));
+  if (!strcmp(cmd, "cf")) {              // Close fully
+    setTargetAngles(leftCloseFullDeg, rightCloseFullDeg);
+    Serial.println(F("Closing fully..."));
     return;
   }
-  if (!strncmp(cmd, "setL", 4)) {
+  if (!strncmp(cmd, "setL", 4)) {        // setL###
     float v = atof(cmd + 4);
-    leftDeg = constrain(v, 0, 180);
-    moveServos(leftDeg, rightDeg);
-    Serial.println(F("Left servo set"));
+    setTargetAngles(v, rightTargetDeg);
+    Serial.println(F("Left servo target set."));
     return;
   }
-  if (!strncmp(cmd, "setR", 4)) {
+  if (!strncmp(cmd, "setR", 4)) {        // setR###
     float v = atof(cmd + 4);
-    rightDeg = constrain(v, 0, 180);
-    moveServos(leftDeg, rightDeg);
-    Serial.println(F("Right servo set"));
+    setTargetAngles(leftTargetDeg, v);
+    Serial.println(F("Right servo target set."));
     return;
   }
   if (!strcmp(cmd, "force")) {
@@ -127,15 +133,16 @@ void handleCommand(const char *cmd) {
   }
   if (!strcmp(cmd, "help")) {
     Serial.println(F("Commands:"));
-    Serial.println(F("  o     -> start opening"));
-    Serial.println(F("  c     -> start closing"));
-    Serial.println(F("  s     -> stop motion"));
-    Serial.println(F("  setL<num> / setR<num> -> set servo manually (0–180)"));
-    Serial.println(F("  force -> print force"));
+    Serial.println(F("  o      -> open"));
+    Serial.println(F("  cp     -> close for block (partial close)"));
+    Serial.println(F("  cf     -> close fully"));
+    Serial.println(F("  setL<num> -> set left servo angle"));
+    Serial.println(F("  setR<num> -> set right servo angle"));
+    Serial.println(F("  force  -> print force"));
     return;
   }
 
-  Serial.println(F("ERR: unknown (use o/c/s/setL/setR/force/help)"));
+  Serial.println(F("ERR: unknown (use o/cp/cf/setL#/setR#/force/help)"));
 }
 
 // ----------------------------
@@ -147,13 +154,13 @@ void setup() {
 
   leftServo.attach(leftServoPin);
   rightServo.attach(rightServoPin);
-  moveServos(leftDeg, rightDeg);
+  moveServos(leftOpenDeg, rightOpenDeg);
 
   pinMode(FORCE_PIN, INPUT);
   lastUpdateMs = millis();
 
   Serial.println(F("Prongs ready."));
-  Serial.println(F("Commands: o=open, c=close, s=stop, setL#, setR#, force, help"));
+  Serial.println(F("Commands: o=open, cp=close_block, cf=close_full, setL#, setR#, force, help"));
 }
 
 // ----------------------------
@@ -164,7 +171,7 @@ void loop() {
   while (Serial.available() > 0) {
     char ch = Serial.read();
     lastRxMs = millis();
-    if (isspace(ch) || ch == ',') {
+    if (isspace(ch) || ch == ',' || ch == '\n') {
       if (cmdLen > 0) {
         cmdBuf[cmdLen] = '\0';
         handleCommand(cmdBuf);
@@ -180,17 +187,24 @@ void loop() {
     cmdLen = 0;
   }
 
-  // Continuous motion
+  // Smoothly move current servos toward target
   unsigned long now = millis();
   float dt = (now - lastUpdateMs) / 1000.0f;
-  if (dt > 0 && motion_dir != 0) {
-    leftDeg  += motion_dir * RATE_DEG_PER_SEC * dt;
-    rightDeg += motion_dir * RATE_DEG_PER_SEC * dt;  // both increase, but right is mirrored when written
-    moveServos(leftDeg, rightDeg);
+  if (dt > 0) {
+    float maxStep = DEG_RATE_PER_SEC * dt;
+    float lDelta = leftTargetDeg - leftCurrentDeg;
+    float rDelta = rightTargetDeg - rightCurrentDeg;
+
+    if (fabs(lDelta) > 1e-2f)
+      leftCurrentDeg += clampf(lDelta, -maxStep, maxStep);
+    if (fabs(rDelta) > 1e-2f)
+      rightCurrentDeg += clampf(rDelta, -maxStep, maxStep);
+
+    moveServos(leftCurrentDeg, rightCurrentDeg);
   }
   lastUpdateMs = now;
 
-  // Live force print every 250ms
+  // Live force print
   static unsigned long lastPrint = 0;
   if (millis() - lastPrint > 250) {
     float f = readForceSensor(false);

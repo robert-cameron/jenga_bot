@@ -16,5 +16,9 @@ setup(
     maintainer_email='you@example.com',
     description='Simple serial bridge for end effector (Arduino)',
     license='MIT',
-    entry_points={'console_scripts': ['bridge = end_eff_bridge.serial_bridge:main']},
+    entry_points={
+        'console_scripts': [
+            'bridge = end_eff_bridge.serial_node:main',
+        ],
+    },
 )

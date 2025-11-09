@@ -40,3 +40,18 @@ brain_node coordinates high-level task logic for the Jenga robot. It waits for t
 ## Launch
 
 Run:
+
+1. Build the workspace
+cd ~/jenga_ws  # or your workspace root
+colcon build --packages-select brain_node ui_node
+source install/setup.bash
+
+2. Launch both nodes together
+# Launch the brain node (orchestrates logic)
+ros2 launch brain_node brain.launch.py
+
+
+In another terminal:
+
+# Launch the UI node (sends SPACE → /ui/player_done)
+ros2 run ui_node player_ui
