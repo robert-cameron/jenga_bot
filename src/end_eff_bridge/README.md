@@ -29,5 +29,5 @@ ros2 run end_eff_bridge bridge --ros-args -p port:=/dev/ttyUSB0 -p baud:=115200
 Send a command to open the gripper:
 
 ```
-ros2 topic pub /prongs/cmd std_msgs/String "data: 'open'"
+ros2 topic pub /prongs/cmd std_msgs/String "data: 'setLx setRx'"
 ```
