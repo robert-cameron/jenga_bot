@@ -7,6 +7,7 @@
 #include <geometry_msgs/msg/pose.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2/LinearMath/Vector3.h>
+#include "std_msgs/msg/string.hpp"
 
 class PullMoveAction : public BaseAction
 {
@@ -16,7 +17,9 @@ public:
                             double pull_distance = 0.08,
                             double drop_height = 0.04,
                             double pull_speed = 0.1)
-        : approach_action_(node, end_eff_pose),
+        : node_(node),
+          gripper_pub_(node_->create_publisher<std_msgs::msg::String>("/prongs/cmd", 10)),
+          approach_action_(node, end_eff_pose),
           linear_drop_action_(),
           linear_pull_action_(pull_speed),
           drop_height_(drop_height),
@@ -42,6 +45,11 @@ public:
             goal_handle->publish_feedback(feedback);
             return false;
         }
+
+        // open gripper
+        std_msgs::msg::String cmd;
+        cmd.data = "o";
+        gripper_pub_->publish(cmd);
 
         if (!linear_drop_action_.execute(move_group, approach_action_.getApproachGoal(goal, 0.01), goal_handle))
         {
@@ -82,10 +90,11 @@ public:
         feedback->feedback = "PullMoveAction completed successfully.";
         goal_handle->publish_feedback(feedback);
         return true;
-
     }
 
 private:
+    rclcpp::Node::SharedPtr node_;
+    std::shared_ptr<rclcpp::Publisher<std_msgs::msg::String>> gripper_pub_;
     ApproachMoveAction approach_action_;
     LinearMoveAction linear_drop_action_;
     LinearMoveAction linear_pull_action_;
