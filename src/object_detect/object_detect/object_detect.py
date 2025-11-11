@@ -23,9 +23,20 @@ block_width = 0.025  # meters
 block_height = 0.015  # meters
 
 # Used for vision, thus the width is greater
-tower_width = 0.1  # meters
+tower_width = 0.13  # meters
 centre_offset = tower_width * 0.26  # meters
 left_offset = -0.017  # meters
+
+def map_value(value, in_min, in_max, out_min, out_max):
+    # Figure out how 'wide' each range is
+    left_span = in_max - in_min
+    right_span = out_max - out_min
+
+    # Convert the left range into a 0-1 range (float)
+    value_scaled = float(value - in_min) / float(left_span)
+
+    # Convert the 0-1 range into a value in the right range.
+    return out_min + (value_scaled * right_span)
 
 class objectDetect(Node):
 
@@ -48,6 +59,7 @@ class objectDetect(Node):
 
         # General Variables
         self.cv_image = None
+        self.cv_image_raw = None
         self.mask = None
         self.cv_bridge = CvBridge()
 
@@ -87,7 +99,7 @@ class objectDetect(Node):
     # This gets bgr image from the image topic and finds where green in the image is
     def arm_image_callback(self, msg):      
         try:
-            self.cv_image = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+            self.cv_image_raw = self.cv_bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
             
         except Exception as e:
             self.get_logger().error(f"Error in arm_image_callback: {str(e)}")
@@ -102,6 +114,26 @@ class objectDetect(Node):
         except Exception as e:
             self.get_logger().error(f"Error in point_cloud_callback: {str(e)}")
 
+    def transform_point_to_camera(self, point, from_frame="tower_base_vision"):
+        # point = (x,y,z)
+        ps = PointStamped()
+        ps.header.frame_id = from_frame
+        ps.header.stamp = rclpy.time.Time().to_msg()
+        ps.point.x, ps.point.y, ps.point.z = point
+
+        ps_out = self.tf_buffer.transform(
+            ps, "camera_color_optical_frame", timeout=rclpy.duration.Duration(seconds=0.3)
+        )
+        return np.array([ps_out.point.x, ps_out.point.y, ps_out.point.z])
+    
+    def global_2_pixel(self, point_3d_camera_frame):
+        # point_3d_camera_frame = [X, Y, Z] in camera optical frame (meters)
+        pixel = rs.rs2_project_point_to_pixel(
+            self.intrinsics,
+            [point_3d_camera_frame[0], point_3d_camera_frame[1], point_3d_camera_frame[2]]
+        )
+        # pixel returned as (u, v) = (x_pixel, y_pixel)
+        return int(pixel[0]), int(pixel[1])
 
     def pixel_2_global(self, pixel_pt):
         try:
@@ -113,15 +145,15 @@ class objectDetect(Node):
 
         except Exception as e:
             self.get_logger().error(f"Error in pixel_2_global: {str(e)}")
-            cv2.imshow('Image', self.cv_image)
-            cv2.waitKey(1)
             return None
 
     def routine_callback(self):
         try:
             """Detect ArUco markers and broadcast TF for each one."""
-            if self.cv_image is None:
+            if self.cv_image_raw is None:
                 return
+            
+            self.cv_image = self.cv_image_raw.copy()
 
             # Detect ArUco markers
             corners, ids, _ = cv2.aruco.detectMarkers(self.cv_image, self.aruco_dict, parameters=self.aruco_params)
@@ -130,7 +162,7 @@ class objectDetect(Node):
             
             marker_positions = {}
             marker_positions_image = {}
-            marker_length = 0.05  # <-- meters (set this to your marker’s real side length)
+            marker_length = 0.1  # <-- meters (set this to your marker’s real side length)
 
             # Convert intrinsics to OpenCV format
             cameraMatrix = np.array([
@@ -147,6 +179,7 @@ class objectDetect(Node):
             for i, marker_id in enumerate(ids.flatten()):
                 pts = corners[i][0]
                 rvec = rvecs[i][0]
+                tvec = tvecs[i][0]
                 center = np.mean(pts, axis=0).astype(int)
                 
                 R, _ = cv2.Rodrigues(rvec)
@@ -162,7 +195,8 @@ class objectDetect(Node):
 
                 y, x, z = pos
                 self.get_logger().info(f"Marker {marker_id}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
-                marker_positions[marker_id] = (x,y,z, quat[0], quat[1], quat[2], quat[3])
+                self.get_logger().info(f"ARUCO  {marker_id}: x={tvec[0]:.3f}, y={tvec[1]:.3f}, z={tvec[2]:.3f}")
+                marker_positions[marker_id] = (tvec[0],tvec[1], tvec[2], quat[0], quat[1], quat[2], quat[3])
                 marker_positions_image[marker_id] = tuple(center)
 
                 # Publish TF transform
@@ -170,14 +204,15 @@ class objectDetect(Node):
                 transform.header.stamp = self.get_clock().now().to_msg()
                 transform.header.frame_id = "camera_color_optical_frame"
                 transform.child_frame_id = f"aruco_{marker_id}"
-                transform.transform.translation.x = x
-                transform.transform.translation.y = y
-                transform.transform.translation.z = z
+                transform.transform.translation.x = tvec[0]
+                transform.transform.translation.y = tvec[1]
+                transform.transform.translation.z = tvec[2]
                 transform.transform.rotation.x = quat[0]
                 transform.transform.rotation.y = quat[1]
                 transform.transform.rotation.z = quat[2]
                 transform.transform.rotation.w = quat[3]
                 self.tf_broadcaster.sendTransform(transform)
+
 
             print(marker_positions)
 
@@ -241,10 +276,25 @@ class objectDetect(Node):
             transform.transform.rotation.w = tf1.transform.rotation.w
             self.tf_broadcaster.sendTransform(transform)
 
+            left_bottom_edge_point = base_point - (tower_width / 2) * right + (tower_width / 2) * forward
+            # left_bottom_edge_point = base_point - (tower_width / 2) * right 
+            right_bottom_edge_point = base_point + (tower_width / 2) * right - (tower_width / 2) * forward
+            # right_bottom_edge_point = base_point - (tower_width / 2) * forward
+            centre_bottom_edge_point = base_point - (tower_width / 2) * right - (tower_width / 2) * forward
+            centre_top_edge_point = base_point - (tower_width / 2) * right - (tower_width / 2) * forward + vertical * 0.6
+            # bottom_point_camera = self.transform_point_to_camera(bottom_point, from_frame="tower_base_vision")
+            (lbx, lby) = self.global_2_pixel([left_bottom_edge_point[0], left_bottom_edge_point[1], left_bottom_edge_point[2]])
+            (rbx, rby) = self.global_2_pixel([right_bottom_edge_point[0], right_bottom_edge_point[1], right_bottom_edge_point[2]])
+            (cbx, cby) = self.global_2_pixel([centre_bottom_edge_point[0], centre_bottom_edge_point[1], centre_bottom_edge_point[2]])
+            # (ctx, cty) = self.global_2_pixel([centre_top_edge_point[0], centre_top_edge_point[1], centre_top_edge_point[2]])
+            # (ctx, cty) = self.global_2_pixel([base_point[0], base_point[1], base_point[2]])
+            ctx = (lbx + rbx) // 2
+            cty = (lby + rby) // 2
+
             hsv = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
-            lower_green = np.array([35, 28, 77])
-            upper_green = np.array([86, 170, 113])
+            lower_green = np.array([90,208,129])
+            upper_green = np.array([107,255,201])
 
             # Threshold the image to get only green colors
             mask = cv2.inRange(hsv, lower_green, upper_green)
@@ -258,61 +308,68 @@ class objectDetect(Node):
             # Find contours of the green regions
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-            area_height = 150  # You can adjust this value as needed
+            area_height = 400  # You can adjust this value as needed
             lowest_point = max(marker_positions_image[1][1], marker_positions_image[2][1])
             left = min(marker_positions_image[1][0], marker_positions_image[2][0])
             right_image = max(marker_positions_image[1][0], marker_positions_image[2][0])
-            area_top_left = (left - 20, lowest_point - area_height)
-            area_bottom_right = (right_image + 20, lowest_point)
+            area_top_left = (left - 70, lowest_point - area_height)
+            area_bottom_right = (right_image + 70, lowest_point)
 
             cv2.rectangle(self.cv_image, area_top_left, area_bottom_right, (255, 0, 0), 2)
 
-            positions = np.array([
-                [-tower_width/2,  centre_offset + left_offset,      0],   # left_one
-                [-tower_width/2,  0             + left_offset,      0],   # left_two
-                [-tower_width/2, -centre_offset + left_offset,      0],   # left_three
-                [-centre_offset, -tower_width/2,                    0],   # right_one
-                [0,              -tower_width/2,                    0],   # right_two
-                [centre_offset,  -tower_width/2,                    0],   # right_three
-            ])
+            cv2.line(self.cv_image, (lbx, lby), (cbx, cby), (255, 0, 0), 2)
+            cv2.line(self.cv_image, (cbx, cby), (rbx, rby), (255, 0, 0), 2)
+            cv2.line(self.cv_image, (cbx, cby), (ctx, cty), (0, 0, 255), 2)
 
-            position_names = [
-                "left_one", "left_two", "left_three",
-                "right_one", "right_two", "right_three"
-            ]
-            try:
-                # Transform from frame A -> B
-                transform = self.tf_buffer.lookup_transform(
-                    'tower_base_vision',             # target frame
-                    'camera_color_optical_frame',      # source frame
-                    rclpy.time.Time()
-                )
-            except Exception as e:
-                self.get_logger().warn(f"Transform failed: {e}")
-                return
+            # positions = np.array([
+            #     [-tower_width/2,  centre_offset + left_offset,      0],   # left_one
+            #     [-tower_width/2,  0             + left_offset,      0],   # left_two
+            #     [-tower_width/2, -centre_offset + left_offset,      0],   # left_three
+            #     [-centre_offset, -tower_width/2,                    0],   # right_one
+            #     [0,              -tower_width/2,                    0],   # right_two
+            #     [centre_offset,  -tower_width/2,                    0],   # right_three
+            # ])
 
-            count = 0
-            for pos in positions:
-                count += 1
-                transformNew = TransformStamped()
-                transformNew.header.stamp = self.get_clock().now().to_msg()
-                transformNew.header.frame_id = "tower_base_vision"
-                transformNew.child_frame_id = f"place_{count}"
-                x, y, z = pos.tolist()
-                print(f"Place position {count}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
-                transformNew.transform.translation.x = x
-                transformNew.transform.translation.y = y
-                transformNew.transform.translation.z = z
-                transformNew.transform.rotation.x = 0.0
-                transformNew.transform.rotation.y = 0.0
-                transformNew.transform.rotation.z = 0.0
-                transformNew.transform.rotation.w = 1.0
-                self.tf_broadcaster.sendTransform(transformNew)
+            # position_names = [
+            #     "left_one", "left_two", "left_three",
+            #     "right_one", "right_two", "right_three"
+            # ]
+            # try:
+            #     # Transform from frame A -> B
+            #     transform = self.tf_buffer.lookup_transform(
+            #         'tower_base_vision',             # target frame
+            #         'camera_color_optical_frame',      # source frame
+            #         rclpy.time.Time()
+            #     )
+            # except Exception as e:
+            #     self.get_logger().warn(f"Transform failed: {e}")
+            #     return
 
-            positions_x_y = np.array([ [p[0], p[1]] for p in positions ])
-            points_x_y = np.empty((0, 2))
+            # count = 0
+            # for pos in positions:
+            #     count += 1
+            #     transformNew = TransformStamped()
+            #     transformNew.header.stamp = self.get_clock().now().to_msg()
+            #     transformNew.header.frame_id = "tower_base_vision"
+            #     transformNew.child_frame_id = f"place_{count}"
+            #     x, y, z = pos.tolist()
+            #     print(f"Place position {count}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
+            #     transformNew.transform.translation.x = x
+            #     transformNew.transform.translation.y = y
+            #     transformNew.transform.translation.z = z
+            #     transformNew.transform.rotation.x = 0.0
+            #     transformNew.transform.rotation.y = 0.0
+            #     transformNew.transform.rotation.z = 0.0
+            #     transformNew.transform.rotation.w = 1.0
+            #     self.tf_broadcaster.sendTransform(transformNew)
+
+            # positions_x_y = np.array([ [p[0], p[1]] for p in positions ])
+            points_x = np.empty((0, 1))
             
             points = []
+
+            print(f"cbx: {cbx}, cby: {cby}, ctx: {ctx}, cty: {cty}")
+            print(f"lbx: {lbx}, lby: {lby}, rbx: {rbx}, rby: {rby}")
 
             # Draw bounding boxes around detected green regions
             for cnt in contours:
@@ -320,32 +377,59 @@ class objectDetect(Node):
                 if not (ix >= area_top_left[0] and ix + iw <= area_bottom_right[0] and
                     iy >= area_top_left[1] and iy + ih <= area_bottom_right[1]):
                     continue
-                if iw < 5 or iw > 13:
-                    print("Width rejected:", iw)
+                if ih < 10:
+                    # print("Width rejected:", iw)
                     continue
 
                 center = (ix + iw // 2, iy + ih // 2)
 
-                pos = self.pixel_2_global(center[::-1])
-                if pos is None:
-                    continue
+                left_right_offset = map_value(center[1], cby, cty, cbx, ctx)
 
-                y, x, z = pos
-                point_camera = PointStamped()
-                point_camera.header.stamp = self.get_clock().now().to_msg()
-                point_camera.header.frame_id = "camera_color_optical_frame"
-                point_camera.point.x = x
-                point_camera.point.y = y
-                point_camera.point.z = z
+                bottom_side_x = lbx if center[0] < left_right_offset else rbx
+                bottom_side_y = lby if center[0] < left_right_offset else rby
 
-                point_in_tower = do_transform_point(point_camera, transform)
+                base_y = map_value(center[0] - left_right_offset + cbx, cbx, bottom_side_x, cby, bottom_side_y)
 
-                points_x_y = np.append(points_x_y, [[point_in_tower.point.x, point_in_tower.point.y]], axis=0)
-                points.append(((point_in_tower.point.x, point_in_tower.point.y, point_in_tower.point.z), (ix, iy, iw, ih)))
 
-            kmeans_positions, labels = kmeans2(points_x_y, positions_x_y, iter=10)
+                point_x = center[0] - left_right_offset + cbx
+                point_y = base_y - center[1]
+                print(f"{point_x}, {point_y}")
 
-            points_side_z = np.array([ [labels[i] <= 2, points[i][0][2]] for i in range(len(points)) ])
+                points_x = np.append(points_x, [[point_x]])
+                points.append(((point_x, point_y), (ix, iy, iw, ih)))
+
+                color = (0, 255, 0) if cby - base_y < 0.0 else (0, 0, 255)
+
+            position_guesses = np.array([
+                float(cbx) - math.fabs(float(cbx - lbx)) * 0.95,
+                float(cbx) - math.fabs(float(cbx - lbx)) * 0.57,
+                float(cbx) - math.fabs(float(cbx - lbx)) * 0.16,
+                float(cbx) + math.fabs(float(cbx - rbx)) * 0.16,
+                float(cbx) + math.fabs(float(cbx - rbx)) * 0.57,
+                float(cbx) + math.fabs(float(cbx - rbx)) * 0.95,
+            ])
+
+            print(position_guesses)
+
+            kmeans_positions, labels = kmeans2(points_x, position_guesses, iter=10)
+
+            kmeans_positions_to_labels = [ (i, kmeans_positions[i]) for i in range(len(kmeans_positions)) ]
+
+            print(kmeans_positions)
+            print(kmeans_positions_to_labels)
+
+            sorted_x_groups = sorted(kmeans_positions_to_labels, key=lambda item: item[1])
+            print(sorted_x_groups)
+
+            unsorted_labels_x_groups = [ (i, sorted_x_groups[i][0], sorted_x_groups[i][1]) for i in range(len(sorted_x_groups)) ]
+            print(unsorted_labels_x_groups)
+
+            labels_to_x_groups = sorted(unsorted_labels_x_groups, key=lambda item: item[1])
+            print(labels_to_x_groups)
+
+
+            points_side_z = np.array([ [kmeans_positions[labels[i]] <= cbx, points[i][0][1]] for i in range(len(points)) ])
+            print("points_side_z", points_side_z)
             
             # points_side_z: Nx2 -> [is_left_bool, z_value]
             points_side_z = np.array(points_side_z)
@@ -363,7 +447,7 @@ class objectDetect(Node):
             right_linkage = linkage(right_Z_vals, method='ward')
 
             # Instead of number of clusters, use a distance threshold
-            distance_threshold = 0.014  # meters; tweak depending on your tower
+            distance_threshold = 20  # meters; tweak depending on your tower
             left_clusters = fcluster(left_linkage, distance_threshold, criterion='distance')
             right_clusters = fcluster(right_linkage, distance_threshold, criterion='distance')
 
@@ -406,20 +490,20 @@ class objectDetect(Node):
             tower_occupancy = {} 
 
             for i in range(len(points)):
-                (_px, _py, _pz), (ix, iy, iw, ih) = points[i]
+                (_px, _py), (ix, iy, iw, ih) = points[i]
                 side = "left" if points_side_z[i, 0] == 1 else "right"
                 cluster_id = height_cluster_labels[i]
 
                 level = cluster_order_map[(side, cluster_id)]
-                print(f"Point {i}: side={side}, cluster_id={cluster_id}, level={level}, z={_pz:.3f}, w={iw}, h={ih}")
+                pos = labels_to_x_groups[labels[i]][0] % 3
+                print(f"Point {i}: side={side}, pos={pos}, poslabel={labels[i]}, level={level}, x={_px:.3f}, y={_py:.3f}, w={iw}, h={ih}")
                 level_occupancy = tower_occupancy.get(level)
                 if level_occupancy is None:
                     level_occupancy = {
                         "side": side,
                         "occupancy": [False, False, False]  # three positions per side
                     }
-                
-                pos = labels[i] % 3
+
                 level_occupancy["occupancy"][pos] = True
                 tower_occupancy[level] = level_occupancy
 
