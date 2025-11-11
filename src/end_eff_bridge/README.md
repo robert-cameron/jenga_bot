@@ -47,6 +47,12 @@ Or specify explicitly
 ros2 run end_eff_bridge bridge --ros-args -p port:=/dev/ttyUSB0 -p baud:=115200
 ```
 
+View the force sensor readings
+```
+ros2 topic echo /prongs/force_g
+
+```
+
 Note: Only one process can open the serial device at a time. Close other serial monitors before running the node.
 
 ## Changing presets via ROS (no reflashing)
