@@ -136,5 +136,3 @@ plot off
 force
 help
 ```
-
-By design, you shouldn’t need to send `def ...` yourself—change ROS params instead.
