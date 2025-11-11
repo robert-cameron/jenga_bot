@@ -73,7 +73,18 @@ public:
         manipulation::action::Manipulation::Goal pull_goal = goal;
         pull_goal.pose = pull_pose;
 
-        rclcpp::sleep_for(std::chrono::seconds(1));
+        rclcpp::sleep_for(std::chrono::seconds(2));
+
+        // close gripper
+        cmd.data = "cp";
+        gripper_pub_->publish(cmd);
+
+        if (!linear_drop_action_.execute(move_group, approach_action_.getApproachGoal(goal, 0.01), goal_handle))
+        {
+            feedback->feedback = "PullMoveAction failed during drop.";
+            goal_handle->publish_feedback(feedback);
+            return false;
+        }
 
         // pull
         feedback->feedback = "Executing pull with linear move...";
