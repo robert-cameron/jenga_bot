@@ -31,3 +31,13 @@ Send a command to open the gripper:
 ```
 ros2 topic pub /prongs/cmd std_msgs/String "data: 'setLx setRx'"
 ```
+
+## Commands
+
+The commands that the gripper takes:
+       o      -> open  
+       cp     -> close for block (partial close)  
+       cf     -> close fully  
+       setL<num> -> set left servo angle  
+       setR<num> -> set right servo angle  
+       force  -> print force  
