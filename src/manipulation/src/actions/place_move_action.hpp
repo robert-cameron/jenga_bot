@@ -14,7 +14,7 @@ class PlaceMoveAction : public BaseAction
 public:
     explicit PlaceMoveAction(rclcpp::Node::SharedPtr node,
                              geometry_msgs::msg::Pose end_eff_pose,
-                             double block_offset = 0.06,
+                             double block_offset = 0.056,
                              double clearance_height = 0.04,
                              double drop_height = 0.01,
                              double move_speed = 0.2)

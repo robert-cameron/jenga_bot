@@ -12,8 +12,8 @@ class PushMoveAction : public BaseAction
 {
 public:
   explicit PushMoveAction(rclcpp::Node::SharedPtr node,
-                          geometry_msgs::msg::Pose end_eff_pose, double push_distance = 0.06,
-                          double push_speed = 0.1, double retract_speed = 0.2)
+                          geometry_msgs::msg::Pose end_eff_pose, double push_distance = 0.07,
+                          double push_speed = 0.05, double retract_speed = 0.2)
       : approach_action_(node, end_eff_pose),
         linear_push_action_(push_speed),
         linear_retract_action_(retract_speed),

@@ -140,7 +140,7 @@ class objectDetect(Node):
         except Exception as e:
             self.get_logger().error(f"Error in point_cloud_callback: {str(e)}")
 
-    def transform_point_to_camera(self, point, from_frame="tower_base_vision"):
+    def transform_point_to_camera(self, point, from_frame="tower_base"):
         # point = (x,y,z)
         ps = PointStamped()
         ps.header.frame_id = from_frame
@@ -295,7 +295,7 @@ class objectDetect(Node):
             transform = TransformStamped()
             transform.header.stamp = self.get_clock().now().to_msg()
             transform.header.frame_id = "camera_color_optical_frame"
-            transform.child_frame_id = "tower_base_vision"
+            transform.child_frame_id = "tower_base"
             transform.transform.translation.x = base_x
             transform.transform.translation.y = base_y
             transform.transform.translation.z = base_z
@@ -311,7 +311,7 @@ class objectDetect(Node):
             # right_bottom_edge_point = base_point - (tower_width / 2) * forward
             centre_bottom_edge_point = base_point - (tower_width / 2) * right - (tower_width / 2) * forward
             centre_top_edge_point = base_point - (tower_width / 2) * right - (tower_width / 2) * forward + vertical * 0.6
-            # bottom_point_camera = self.transform_point_to_camera(bottom_point, from_frame="tower_base_vision")
+            # bottom_point_camera = self.transform_point_to_camera(bottom_point, from_frame="tower_base")
             (lbx, lby) = self.global_2_pixel([left_bottom_edge_point[0], left_bottom_edge_point[1], left_bottom_edge_point[2]])
             (rbx, rby) = self.global_2_pixel([right_bottom_edge_point[0], right_bottom_edge_point[1], right_bottom_edge_point[2]])
             (cbx, cby) = self.global_2_pixel([centre_bottom_edge_point[0], centre_bottom_edge_point[1], centre_bottom_edge_point[2]])
@@ -366,7 +366,7 @@ class objectDetect(Node):
             # try:
             #     # Transform from frame A -> B
             #     transform = self.tf_buffer.lookup_transform(
-            #         'tower_base_vision',             # target frame
+            #         'tower_base',             # target frame
             #         'camera_color_optical_frame',      # source frame
             #         rclpy.time.Time()
             #     )
@@ -379,7 +379,7 @@ class objectDetect(Node):
             #     count += 1
             #     transformNew = TransformStamped()
             #     transformNew.header.stamp = self.get_clock().now().to_msg()
-            #     transformNew.header.frame_id = "tower_base_vision"
+            #     transformNew.header.frame_id = "tower_base"
             #     transformNew.child_frame_id = f"place_{count}"
             #     x, y, z = pos.tolist()
             #     print(f"Place position {count}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
@@ -554,14 +554,14 @@ class objectDetect(Node):
 
             block_poses = PoseArray()
             block_poses.header.stamp = transform.header.stamp
-            block_poses.header.frame_id = "tower_base_vision"
+            block_poses.header.frame_id = "tower_base"
 
             marker_array = MarkerArray()
             marker_id = 0  # unique ID for each marker
 
             delete_all_marker = Marker()
             delete_all_marker.action = Marker.DELETEALL
-            delete_all_marker.header.frame_id = "tower_base_vision"
+            delete_all_marker.header.frame_id = "tower_base"
             delete_all_marker.header.stamp = transform.header.stamp
             marker_array.markers.append(delete_all_marker)
 
@@ -595,7 +595,7 @@ class objectDetect(Node):
 
                     # Create Marker
                     marker = Marker()
-                    marker.header.frame_id = "tower_base_vision"
+                    marker.header.frame_id = "tower_base"
                     marker.header.stamp = transform.header.stamp
                     marker.ns = "tower_blocks"
                     marker.id = marker_id

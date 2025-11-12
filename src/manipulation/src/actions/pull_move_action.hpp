@@ -51,7 +51,7 @@ public:
         cmd.data = "o";
         gripper_pub_->publish(cmd);
 
-        if (!linear_drop_action_.execute(move_group, approach_action_.getApproachGoal(goal, 0.01), goal_handle))
+        if (!linear_drop_action_.execute(move_group, approach_action_.getApproachGoal(goal, 0.005), goal_handle))
         {
             feedback->feedback = "PullMoveAction failed during drop.";
             goal_handle->publish_feedback(feedback);
