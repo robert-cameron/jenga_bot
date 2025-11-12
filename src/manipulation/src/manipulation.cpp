@@ -16,6 +16,7 @@
 #include "./actions/free_move_action.hpp"
 #include "./actions/push_move_action.hpp"
 #include "./actions/pull_move_action.hpp"
+#include "./actions/place_move_action.hpp"
 #include "./actions/linear_move_action.hpp"
 #include "./actions/approach_move_action.hpp"
 #include <tf2_ros/transform_listener.h>
@@ -106,6 +107,10 @@ private:
     else if (goal->action_type == "pull_move")
     {
       action = std::make_unique<PullMoveAction>(shared_from_this(), getEndEffectorPose());
+    }
+    else if (goal->action_type == "place_move")
+    {
+      action = std::make_unique<PlaceMoveAction>(shared_from_this(), getEndEffectorPose());
     }
     else if (goal->action_type == "free_move")
     {
