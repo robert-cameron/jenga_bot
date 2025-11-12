@@ -98,7 +98,7 @@ public:
     return true;
   }
 
-  manipulation::action::Manipulation::Goal getApproachGoal(manipulation::action::Manipulation::Goal goal, double approach_distance = 0.02)
+  static manipulation::action::Manipulation::Goal getApproachGoal(manipulation::action::Manipulation::Goal goal, double approach_distance = 0.02)
   {
     manipulation::action::Manipulation::Goal approachGoal = goal;
 
