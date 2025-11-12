@@ -22,7 +22,7 @@ WORLD_FRAME="world"
 TABLE_FRAME="table"
 PUBLISH_TABLE_IDENTITY=1
 
-TOWER_BASE_FRAME="tower_base"
+TOWER_BASE_FRAME="tower_base_vision"
 TOWER_X=0.6
 TOWER_Y=0.2
 TOWER_Z=0.03
@@ -76,11 +76,11 @@ pf() { echo "${FRAME_PREFIX}$1"; }
 
 command -v ros2 >/dev/null 2>&1 || { echo "ERROR: ros2 not found in PATH."; exit 1; }
 
-if [[ "$PUBLISH_TABLE_IDENTITY" -eq 1 ]]; then
-  publish_tf_quat 0 0 0 0 0 0 1 "$(pf "$WORLD_FRAME")" "$(pf "$TABLE_FRAME")"
-fi
+# if [[ "$PUBLISH_TABLE_IDENTITY" -eq 1 ]]; then
+#   publish_tf_quat 0 0 0 0 0 0 1 "$(pf "$WORLD_FRAME")" "$(pf "$TABLE_FRAME")"
+# fi
 
-publish_tf_yaw_deg "$TOWER_X" "$TOWER_Y" "$TOWER_Z" "$TOWER_YAW_DEG" "$(pf "$TABLE_FRAME")" "$(pf "$TOWER_BASE_FRAME")"
+# publish_tf_yaw_deg "$TOWER_X" "$TOWER_Y" "$TOWER_Z" "$TOWER_YAW_DEG" "$(pf "$TABLE_FRAME")" "$(pf "$TOWER_BASE_FRAME")"
 
 Q_ID="0 0 0 1"
 Q_ZP90="0 0 0.70710678 0.70710678"
