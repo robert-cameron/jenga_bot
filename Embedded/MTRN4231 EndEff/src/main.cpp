@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Servo.h>
+#include <math.h>
 
 // ----------------------------
 //  Prongs Controller (Degree-based; cp + cf presets)
@@ -10,22 +11,20 @@ const int leftServoPin  = 9;
 const int rightServoPin = 10;
 const int FORCE_PIN     = A0;
 
-// ---- Servo calibration (set these manually) ----
-// Physical servo angles for each state
+// ---- Presets (can be redefined at runtime via "def ..." cmds) ----
 int leftOpenDeg        = 150;
-int leftCloseBlockDeg  = 55;   // partial close (block grip)
-int leftCloseFullDeg   = 0;   // full close
-
 int rightOpenDeg       = 30;
-int rightCloseBlockDeg = 115;    // partial close (block grip)
-int rightCloseFullDeg  = 180;     // full close
+
+int leftCloseBlockDeg  = 80;
+int rightCloseBlockDeg = 100;
+
+int leftCloseFullDeg   = 0;
+int rightCloseFullDeg  = 180;
 
 // ---- Motion behaviour ----
-const float DEG_RATE_PER_SEC = 200.0f;  // speed of servo movement (deg/s)
-float leftTargetDeg  = leftOpenDeg;
-float rightTargetDeg = rightOpenDeg;
-float leftCurrentDeg = leftOpenDeg;
-float rightCurrentDeg = rightOpenDeg;
+const float DEG_RATE_PER_SEC = 200.0f;  // deg/s
+float leftTargetDeg, rightTargetDeg;
+float leftCurrentDeg, rightCurrentDeg;
 unsigned long lastUpdateMs = 0;
 
 // ---- Force Sensor config ----
@@ -37,10 +36,13 @@ float g_G1 = 500.0f;         // grams at V1
 
 // ---- Comm ----
 Servo leftServo, rightServo;
-char cmdBuf[32];
+char cmdBuf[96];
 uint8_t cmdLen = 0;
 unsigned long lastRxMs = 0;
 const unsigned long CMD_IDLE_FLUSH_MS = 100;
+
+// ---- Plotting ----
+bool g_plotCsv = false;  // CSV time,force for GUI plotters
 
 // ----------------------------
 //  Helpers
@@ -58,7 +60,6 @@ void moveServos(float lDeg, float rDeg) {
   rightServo.write(rDeg);
   leftCurrentDeg  = lDeg;
   rightCurrentDeg = rDeg;
-  // Serial.print("L="); Serial.print(lDeg); Serial.print("  R="); Serial.println(rDeg);
 }
 
 void setTargetAngles(float lDeg, float rDeg) {
@@ -79,9 +80,9 @@ float readForceSensor(bool verbose = false) {
   float volts = adc * (ADC_REF / 1023.0f);
 
   float vAdj = g_invert ? (ADC_REF - volts) : volts;
-
   float v0 = g_invert ? (ADC_REF - g_V0) : g_V0;
   float v1 = g_invert ? (ADC_REF - g_V1) : g_V1;
+
   float grams = 0.0f;
   float denom = (v1 - v0);
   if (fabs(denom) > 1e-3f) {
@@ -96,53 +97,119 @@ float readForceSensor(bool verbose = false) {
   return grams;
 }
 
+// ---- small token parser helpers ----
+static bool parseLR(const char* s, int& L, int& R) {
+  // accepts "... L<num> R<num>" in any order, spaces optional
+  // examples: "L150 R30", "R115 L55"
+  L = -1; R = -1;
+  const char* p = s;
+  while (*p) {
+    while (*p == ' ') ++p;
+    if (*p == 'L' || *p == 'l') {
+      ++p; L = atoi(p);
+      while (*p && *p != ' ') ++p;
+    } else if (*p == 'R' || *p == 'r') {
+      ++p; R = atoi(p);
+      while (*p && *p != ' ') ++p;
+    } else {
+      ++p;
+    }
+  }
+  return (L >= 0 && R >= 0);
+}
+
 // ----------------------------
 //  Command Handler
 // ----------------------------
 void handleCommand(const char *cmd) {
-  if (!strcmp(cmd, "o")) {               // Open
+  // --- basic motions from current presets ---
+  if (!strcmp(cmd, "o")) {
     setTargetAngles(leftOpenDeg, rightOpenDeg);
-    Serial.println(F("Opening..."));
+    Serial.println(F("Opening (preset)."));
     return;
   }
-  if (!strcmp(cmd, "cp")) {              // Close for block
+  if (!strcmp(cmd, "cp")) {
     setTargetAngles(leftCloseBlockDeg, rightCloseBlockDeg);
-    Serial.println(F("Closing (block grip)..."));
+    Serial.print(F("Closing (cp preset) → L: ")); Serial.print(leftCloseBlockDeg);
+    Serial.print(F("  R: ")); Serial.println(rightCloseBlockDeg);
     return;
   }
-  if (!strcmp(cmd, "cf")) {              // Close fully
+  if (!strcmp(cmd, "cf")) {
     setTargetAngles(leftCloseFullDeg, rightCloseFullDeg);
-    Serial.println(F("Closing fully..."));
-    return;
-  }
-  if (!strncmp(cmd, "setL", 4)) {        // setL###
-    float v = atof(cmd + 4);
-    setTargetAngles(v, rightTargetDeg);
-    Serial.println(F("Left servo target set."));
-    return;
-  }
-  if (!strncmp(cmd, "setR", 4)) {        // setR###
-    float v = atof(cmd + 4);
-    setTargetAngles(leftTargetDeg, v);
-    Serial.println(F("Right servo target set."));
-    return;
-  }
-  if (!strcmp(cmd, "force")) {
-    readForceSensor(true);
-    return;
-  }
-  if (!strcmp(cmd, "help")) {
-    Serial.println(F("Commands:"));
-    Serial.println(F("  o      -> open"));
-    Serial.println(F("  cp     -> close for block (partial close)"));
-    Serial.println(F("  cf     -> close fully"));
-    Serial.println(F("  setL<num> -> set left servo angle"));
-    Serial.println(F("  setR<num> -> set right servo angle"));
-    Serial.println(F("  force  -> print force"));
+    Serial.println(F("Closing fully (preset)."));
     return;
   }
 
-  Serial.println(F("ERR: unknown (use o/cp/cf/setL#/setR#/force/help)"));
+  // --- absolute pose: "pose L<num> R<num>" (atomic both) ---
+  if (!strncmp(cmd, "pose", 4)) {
+    int L, R;
+    if (parseLR(cmd + 4, L, R)) {
+      setTargetAngles(L, R);
+      Serial.print(F("Pose set → L: ")); Serial.print(L);
+      Serial.print(F("  R: ")); Serial.println(R);
+    } else {
+      Serial.println(F("ERR: use 'pose L<deg> R<deg>'"));
+    }
+    return;
+  }
+
+  // --- redefine presets at runtime: "def <o|cp|cf> L<num> R<num>" ---
+  if (!strncmp(cmd, "def ", 4)) {
+    const char* p = cmd + 4;
+    while (*p == ' ') ++p;
+    if (!strncmp(p, "o", 1)) {
+      int L, R; if (parseLR(p + 1, L, R)) {
+        leftOpenDeg = (int)clampf(L, 0, 180);
+        rightOpenDeg = (int)clampf(R, 0, 180);
+        Serial.print(F("Defined o → L: ")); Serial.print(leftOpenDeg);
+        Serial.print(F("  R: ")); Serial.println(rightOpenDeg);
+      } else Serial.println(F("ERR: def o L<deg> R<deg>"));
+      return;
+    }
+    if (!strncmp(p, "cp", 2)) {
+      int L, R; if (parseLR(p + 2, L, R)) {
+        leftCloseBlockDeg  = (int)clampf(L, 0, 180);
+        rightCloseBlockDeg = (int)clampf(R, 0, 180);
+        Serial.print(F("Defined cp → L: ")); Serial.print(leftCloseBlockDeg);
+        Serial.print(F("  R: ")); Serial.println(rightCloseBlockDeg);
+      } else Serial.println(F("ERR: def cp L<deg> R<deg>"));
+      return;
+    }
+    if (!strncmp(p, "cf", 2)) {
+      int L, R; if (parseLR(p + 2, L, R)) {
+        leftCloseFullDeg  = (int)clampf(L, 0, 180);
+        rightCloseFullDeg = (int)clampf(R, 0, 180);
+        Serial.print(F("Defined cf → L: ")); Serial.print(leftCloseFullDeg);
+        Serial.print(F("  R: ")); Serial.println(rightCloseFullDeg);
+      } else Serial.println(F("ERR: def cf L<deg> R<deg>"));
+      return;
+    }
+    Serial.println(F("ERR: def expects o|cp|cf"));
+    return;
+  }
+
+  // --- legacy single-servo setters (still supported) ---
+  if (!strncmp(cmd, "setL", 4)) { float v = atof(cmd + 4); setTargetAngles(v, rightTargetDeg); Serial.println(F("Left target set.")); return; }
+  if (!strncmp(cmd, "setR", 4)) { float v = atof(cmd + 4); setTargetAngles(leftTargetDeg, v); Serial.println(F("Right target set.")); return; }
+
+  // --- diagnostics & plot toggles ---
+  if (!strcmp(cmd, "force")) { (void)readForceSensor(true); return; }
+  if (!strcmp(cmd, "plot on"))  { g_plotCsv = true;  Serial.println(F("Plotting mode ON (CSV)."));  return; }
+  if (!strcmp(cmd, "plot off")) { g_plotCsv = false; Serial.println(F("Plotting mode OFF."));       return; }
+
+  if (!strcmp(cmd, "help")) {
+    Serial.println(F("Commands:"));
+    Serial.println(F("  o | cp | cf                  (move to presets)"));
+    Serial.println(F("  def o  L<deg> R<deg>         (define open)"));
+    Serial.println(F("  def cp L<deg> R<deg>         (define cp)"));
+    Serial.println(F("  def cf L<deg> R<deg>         (define cf)"));
+    Serial.println(F("  pose L<deg> R<deg>           (absolute, atomic)"));
+    Serial.println(F("  setL<num> | setR<num>        (legacy single-servo)"));
+    Serial.println(F("  plot on/off, force, help"));
+    return;
+  }
+
+  Serial.println(F("ERR: unknown (try 'help')"));
 }
 
 // ----------------------------
@@ -154,13 +221,17 @@ void setup() {
 
   leftServo.attach(leftServoPin);
   rightServo.attach(rightServoPin);
-  moveServos(leftOpenDeg, rightOpenDeg);
+
+  // BOOT: closed-full
+  moveServos(leftCloseFullDeg, rightCloseFullDeg);
+  leftTargetDeg  = leftCloseFullDeg;
+  rightTargetDeg = rightCloseFullDeg;
 
   pinMode(FORCE_PIN, INPUT);
   lastUpdateMs = millis();
 
-  Serial.println(F("Prongs ready."));
-  Serial.println(F("Commands: o=open, cp=close_block, cf=close_full, setL#, setR#, force, help"));
+  Serial.println(F("Prongs ready (boot: CF)."));
+  Serial.println(F("Use 'def o/cp/cf L.. R..' from ROS to redefine presets."));
 }
 
 // ----------------------------
@@ -187,28 +258,28 @@ void loop() {
     cmdLen = 0;
   }
 
-  // Smoothly move current servos toward target
+  // Smooth ramp toward target
   unsigned long now = millis();
   float dt = (now - lastUpdateMs) / 1000.0f;
   if (dt > 0) {
     float maxStep = DEG_RATE_PER_SEC * dt;
     float lDelta = leftTargetDeg - leftCurrentDeg;
     float rDelta = rightTargetDeg - rightCurrentDeg;
-
-    if (fabs(lDelta) > 1e-2f)
-      leftCurrentDeg += clampf(lDelta, -maxStep, maxStep);
-    if (fabs(rDelta) > 1e-2f)
-      rightCurrentDeg += clampf(rDelta, -maxStep, maxStep);
-
+    if (fabs(lDelta) > 1e-2f) leftCurrentDeg += clampf(lDelta, -maxStep, maxStep);
+    if (fabs(rDelta) > 1e-2f) rightCurrentDeg += clampf(rDelta, -maxStep, maxStep);
     moveServos(leftCurrentDeg, rightCurrentDeg);
   }
   lastUpdateMs = now;
 
-  // Live force print
+  // Force out (both CSV and ~g= for ROS parsing)
   static unsigned long lastPrint = 0;
-  if (millis() - lastPrint > 250) {
+  if (millis() - lastPrint > 50) { // ~20 Hz
     float f = readForceSensor(false);
-    Serial.print(F("Force ≈ ")); Serial.print(f, 1); Serial.println(F(" g"));
+    if (g_plotCsv) {
+      Serial.print(millis()); Serial.print(','); Serial.println(f, 2);
+    } else {
+      Serial.print(F("~g=")); Serial.println(f, 2); // <- ROS bridge regex friendly
+    }
     lastPrint = millis();
   }
 }
