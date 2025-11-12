@@ -38,6 +38,31 @@ def map_value(value, in_min, in_max, out_min, out_max):
     # Convert the 0-1 range into a value in the right range.
     return out_min + (value_scaled * right_span)
 
+
+def solveMarkerPositons(corners, marker_length, cameraMatrix, distCoeffs):
+    rvecs = []
+    tvecs = []
+
+    for corner in corners:
+        # Each `corner` is 4x2 array of the marker’s corners in pixels
+        # Define the 3D points of the marker corners in its local frame
+        obj_points = np.array([
+            [-marker_length/2,  marker_length/2, 0],
+            [ marker_length/2,  marker_length/2, 0],
+            [ marker_length/2, -marker_length/2, 0],
+            [-marker_length/2, -marker_length/2, 0]
+        ], dtype=np.float32)
+
+        img_points = corner[0].astype(np.float32)
+        success, rvec, tvec = cv2.solvePnP(obj_points, img_points, cameraMatrix, distCoeffs)
+        if success:
+            rvecs.append(rvec)
+            tvecs.append(tvec)
+
+    rvecs = np.array(rvecs, dtype=np.float32)
+    tvecs = np.array(tvecs, dtype=np.float32)
+    return rvecs, tvecs
+
 class objectDetect(Node):
 
     def __init__(self):
@@ -66,6 +91,7 @@ class objectDetect(Node):
         # ArUco dictionary & parameters
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         self.aruco_params = cv2.aruco.DetectorParameters()
+        self.aruco_detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
 
         # Publishers
         self.block_marker_pub = self.create_publisher(MarkerArray, 'vision/markers', 10)
@@ -156,7 +182,7 @@ class objectDetect(Node):
             self.cv_image = self.cv_image_raw.copy()
 
             # Detect ArUco markers
-            corners, ids, _ = cv2.aruco.detectMarkers(self.cv_image, self.aruco_dict, parameters=self.aruco_params)
+            corners, ids, _ = self.aruco_detector.detectMarkers(self.cv_image)
             if ids is None:
                 return
             
@@ -173,13 +199,14 @@ class objectDetect(Node):
             distCoeffs = np.zeros(5)  # or use real distortion coefficients if known
 
             # Estimate pose of each marker
-            rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners, marker_length, cameraMatrix, distCoeffs)
-
+            rvecs, tvecs = solveMarkerPositons(
+                corners, marker_length, cameraMatrix, distCoeffs
+            )
 
             for i, marker_id in enumerate(ids.flatten()):
                 pts = corners[i][0]
-                rvec = rvecs[i][0]
-                tvec = tvecs[i][0]
+                rvec = rvecs[i]
+                tvec = tvecs[i]
                 center = np.mean(pts, axis=0).astype(int)
                 
                 R, _ = cv2.Rodrigues(rvec)
@@ -194,9 +221,10 @@ class objectDetect(Node):
                     continue
 
                 y, x, z = pos
+                tx, ty, tz = tvec.flatten()
                 self.get_logger().info(f"Marker {marker_id}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
-                self.get_logger().info(f"ARUCO  {marker_id}: x={tvec[0]:.3f}, y={tvec[1]:.3f}, z={tvec[2]:.3f}")
-                marker_positions[marker_id] = (tvec[0],tvec[1], tvec[2], quat[0], quat[1], quat[2], quat[3])
+                self.get_logger().info(f"ARUCO  {marker_id}: x={tx:.3f}, y={ty:.3f}, z={tz:.3f}")
+                marker_positions[marker_id] = (tx,ty, tz, quat[0], quat[1], quat[2], quat[3])
                 marker_positions_image[marker_id] = tuple(center)
 
                 # Publish TF transform
@@ -204,9 +232,9 @@ class objectDetect(Node):
                 transform.header.stamp = self.get_clock().now().to_msg()
                 transform.header.frame_id = "camera_color_optical_frame"
                 transform.child_frame_id = f"aruco_{marker_id}"
-                transform.transform.translation.x = tvec[0]
-                transform.transform.translation.y = tvec[1]
-                transform.transform.translation.z = tvec[2]
+                transform.transform.translation.x = float(tx)
+                transform.transform.translation.y = float(ty)
+                transform.transform.translation.z = float(tz)
                 transform.transform.rotation.x = quat[0]
                 transform.transform.rotation.y = quat[1]
                 transform.transform.rotation.z = quat[2]
@@ -259,6 +287,7 @@ class objectDetect(Node):
             distance = np.sqrt(((x2-x1)**2 + (y2-y1)**2)/2)
 
             base_point = np.array([x1, y1, z1 ]) + right * distance
+            print("Base point before correction:", base_point)
             base_x, base_y, base_z = base_point.tolist()
 
             self.get_logger().info(f"Intersection corrected: x={base_x:.3f}, y={base_y:.3f}, z={base_z:.3f}")
@@ -286,10 +315,10 @@ class objectDetect(Node):
             (lbx, lby) = self.global_2_pixel([left_bottom_edge_point[0], left_bottom_edge_point[1], left_bottom_edge_point[2]])
             (rbx, rby) = self.global_2_pixel([right_bottom_edge_point[0], right_bottom_edge_point[1], right_bottom_edge_point[2]])
             (cbx, cby) = self.global_2_pixel([centre_bottom_edge_point[0], centre_bottom_edge_point[1], centre_bottom_edge_point[2]])
-            # (ctx, cty) = self.global_2_pixel([centre_top_edge_point[0], centre_top_edge_point[1], centre_top_edge_point[2]])
+            (ctx, cty) = self.global_2_pixel([centre_top_edge_point[0], centre_top_edge_point[1], centre_top_edge_point[2]])
             # (ctx, cty) = self.global_2_pixel([base_point[0], base_point[1], base_point[2]])
-            ctx = (lbx + rbx) // 2
-            cty = (lby + rby) // 2
+            # ctx = (lbx + rbx) // 2
+            # cty = (lby + rby) // 2
 
             hsv = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
@@ -589,10 +618,14 @@ class objectDetect(Node):
             self.blocks_publisher.publish(block_poses)
             self.block_marker_pub.publish(marker_array)
 
+            
+        except Exception as e:
+            self.get_logger().error(f"Error in routine_callback: {str(e)}")
+        try:
             cv2.imshow('Image', self.cv_image)
             cv2.waitKey(1)
         except Exception as e:
-            self.get_logger().error(f"Error in routine_callback: {str(e)}")
+            self.get_logger().error(f"Error displaying image: {str(e)}")
             
         
             
