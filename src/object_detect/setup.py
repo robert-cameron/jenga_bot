@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'object_detect = object_detect.object_detect:main'
+            'object_detect = object_detect.object_detect:main',
+            'camera_calibration = object_detect.camera_calibration:main'
         ],
     },
 )
