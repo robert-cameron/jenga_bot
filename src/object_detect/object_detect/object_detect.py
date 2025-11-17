@@ -17,6 +17,7 @@ from tf2_geometry_msgs import do_transform_point
 from scipy.cluster.vq import kmeans2
 from scipy.cluster.hierarchy import linkage, fcluster
 
+from collections import deque
 
 block_length = 0.075  # meters
 block_width = 0.025  # meters
@@ -96,6 +97,11 @@ class objectDetect(Node):
         # Publishers
         self.block_marker_pub = self.create_publisher(MarkerArray, 'vision/markers', 10)
         self.blocks_publisher = self.create_publisher(PoseArray, 'vision/blocks', 10)
+
+        self.k = 10  # size of smoothing window
+        self.base_history = deque(maxlen=self.k)
+        self.rot_history = deque(maxlen=self.k)      # rotation smoothing
+
 
         print("Object Detection Node Initialized")
 
@@ -288,21 +294,49 @@ class objectDetect(Node):
 
             base_point = np.array([x1, y1, z1 ]) + right * distance
             print("Base point before correction:", base_point)
-            base_x, base_y, base_z = base_point.tolist()
 
-            self.get_logger().info(f"Intersection corrected: x={base_x:.3f}, y={base_y:.3f}, z={base_z:.3f}")
-            # Broadcast TF for intersection point
+           # Store base translation
+            self.base_history.append(base_point)
+
+            # Store rotation from marker 1
+            current_q = [
+                tf1.transform.rotation.x,
+                tf1.transform.rotation.y,
+                tf1.transform.rotation.z,
+                tf1.transform.rotation.w,
+            ]
+            self.rot_history.append(current_q)
+
+            # === AVERAGE TRANSLATION ===
+            avg_pos = np.mean(self.base_history, axis=0)
+            avg_x, avg_y, avg_z = avg_pos.tolist()
+
+            # === AVERAGE ROTATION ===
+            avg_q = self.average_quaternions(self.rot_history)
+            avg_qx, avg_qy, avg_qz, avg_qw = avg_q
+
+            self.get_logger().info(
+                f"Averaged base: x={avg_x:.3f}, y={avg_y:.3f}, z={avg_z:.3f} | "
+                f"rot=({avg_qx:.3f}, {avg_qy:.3f}, {avg_qz:.3f}, {avg_qw:.3f})"
+            )
+
+            # Broadcast averaged TF
             transform = TransformStamped()
             transform.header.stamp = self.get_clock().now().to_msg()
             transform.header.frame_id = "camera_color_optical_frame"
             transform.child_frame_id = "tower_base"
-            transform.transform.translation.x = base_x
-            transform.transform.translation.y = base_y
-            transform.transform.translation.z = base_z
-            transform.transform.rotation.x = tf1.transform.rotation.x
-            transform.transform.rotation.y = tf1.transform.rotation.y
-            transform.transform.rotation.z = tf1.transform.rotation.z
-            transform.transform.rotation.w = tf1.transform.rotation.w
+
+            # Smoothed translation
+            transform.transform.translation.x = avg_x
+            transform.transform.translation.y = avg_y
+            transform.transform.translation.z = avg_z
+
+            # Smoothed rotation
+            transform.transform.rotation.x = avg_qx
+            transform.transform.rotation.y = avg_qy
+            transform.transform.rotation.z = avg_qz
+            transform.transform.rotation.w = avg_qw
+
             self.tf_broadcaster.sendTransform(transform)
 
             left_bottom_edge_point = base_point - (tower_width / 2) * right + (tower_width / 2) * forward
@@ -645,6 +679,26 @@ class objectDetect(Node):
             [2*(x*z - y*w),   2*(y*z + x*w),     1-2*(x*x+y*y)]
         ])
         return R
+    
+    def average_quaternions(self, quaternions):
+        """
+        Average a list of quaternions using the Markley method.
+        Returns a normalized average quaternion.
+        """
+        M = np.zeros((4, 4))
+
+        for q in quaternions:
+            q = np.array(q, dtype=float).reshape(4, 1)
+            M += q @ q.T
+
+        # Eigenvector with largest eigenvalue
+        eigenvalues, eigenvectors = np.linalg.eigh(M)
+        avg_q = eigenvectors[:, np.argmax(eigenvalues)]
+        
+        # Normalize
+        avg_q = avg_q / np.linalg.norm(avg_q)
+        return avg_q.tolist()
+
 
 def main():
     rclpy.init()
