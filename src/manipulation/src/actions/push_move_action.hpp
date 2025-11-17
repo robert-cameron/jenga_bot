@@ -15,8 +15,8 @@ public:
                           geometry_msgs::msg::Pose end_eff_pose, double push_distance = 0.07,
                           double push_speed = 0.05, double retract_speed = 0.2)
       : approach_action_(node, end_eff_pose),
-        linear_push_action_(push_speed),
-        linear_retract_action_(retract_speed),
+        linear_push_action_(node, push_speed),
+        linear_retract_action_(node, retract_speed),
         push_distance_(push_distance)
   {
   }
@@ -64,7 +64,7 @@ public:
     {
       feedback->feedback = "PushMoveAction failed during push.";
       goal_handle->publish_feedback(feedback);
-      return false;
+      // if push fails, we still want it to retract. hence, don't return false
     }
 
     rclcpp::sleep_for(std::chrono::seconds(1));

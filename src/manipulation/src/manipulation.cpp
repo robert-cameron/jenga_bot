@@ -122,7 +122,7 @@ private:
     }
     else if (goal->action_type == "linear_move")
     {
-      action = std::make_unique<LinearMoveAction>();
+      action = std::make_unique<LinearMoveAction>(shared_from_this());
     }
     else if (goal->action_type == "approach_move")
     {

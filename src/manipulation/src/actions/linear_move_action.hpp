@@ -2,11 +2,39 @@
 
 #include "constrained_move_action.hpp"
 
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/bool.hpp>
+#include <atomic>
+#include <functional>
+
+class SafetyStopWatcher
+{
+public:
+  SafetyStopWatcher(rclcpp::Node::SharedPtr node, std::function<void()> stop_callback)
+  {
+    if (node)
+    {
+      subscription_ = node->create_subscription<std_msgs::msg::Bool>(
+        "/safety/stop", 10,
+        [this, stop_callback](const std_msgs::msg::Bool::SharedPtr msg) {
+          if (msg->data)
+          {
+            stop_callback();
+          }
+        });
+    }
+  }
+
+private:
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr subscription_;
+};
+
 class LinearMoveAction : public ConstrainedMoveAction
 {
 public:
-  explicit LinearMoveAction(double speed_scale = 0.2)
-  : speed_scale_(speed_scale)
+  explicit LinearMoveAction(rclcpp::Node::SharedPtr node, double speed_scale = 0.6)
+  : node_(node),
+    speed_scale_(speed_scale)
   {
   }
 
@@ -63,7 +91,22 @@ public:
     moveit::planning_interface::MoveGroupInterface::Plan plan;
     plan.trajectory_ = trajectory;
 
+    std::atomic<bool> safety_stop_triggered{false};
+    SafetyStopWatcher watcher(node_, [&]() {
+      safety_stop_triggered.store(true);
+      move_group.stop();
+    });
+
     move_group.execute(plan);
+
+    if (safety_stop_triggered.load())
+    {
+      feedback->feedback = "LinearMoveAction interrupted due to safety stop.";
+      goal_handle->publish_feedback(feedback);
+      move_group.clearPathConstraints();
+      move_group.clearPoseTargets();
+      return false;
+    }
 
     feedback->feedback = "LinearMoveAction completed successfully.";
     goal_handle->publish_feedback(feedback);
@@ -74,5 +117,6 @@ public:
   }
 
 private:
+  rclcpp::Node::SharedPtr node_;
   double speed_scale_;
 };

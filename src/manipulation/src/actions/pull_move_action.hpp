@@ -20,8 +20,8 @@ public:
         : node_(node),
           gripper_pub_(node_->create_publisher<std_msgs::msg::String>("/prongs/cmd", 10)),
           approach_action_(node, end_eff_pose),
-          linear_drop_action_(),
-          linear_pull_action_(pull_speed),
+          linear_drop_action_(node),
+          linear_pull_action_(node, pull_speed),
           drop_height_(drop_height),
           pull_distance_(pull_distance)
     {
