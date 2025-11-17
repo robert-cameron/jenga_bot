@@ -1,57 +1,50 @@
-# brain_node
+# Overview
 
-## Overview
+This node monitors gripper force and raises a safety stop when the measured force exceeds a configured threshold.
 
-brain_node coordinates high-level task logic for the Jenga robot. It waits for the player’s start signal (SPACE via /ui/player_done), listens for block positions from the vision system, and orchestrates the manipulation and end-effector nodes to perform autonomous pick-and-place actions.
+## Behavior
+- Subscribes to `/prongs/force_g` (std_msgs/msg/Float32) — gripper force in grams.  
+- Compares each reading to a configured threshold (default: 80 g).  
+- Publishes `True` on `/safety/stop` (std_msgs/msg/Bool) while the force is above the threshold (ESTOP).  
+- Latches internally:
+  - On the first crossing above the threshold, logs a warning.
+  - Continues publishing `True` while force remains above the threshold.
+  - Optionally resets the latch when force drops below a lower band (for example, 80% of the threshold) if configured.
+- Does not command actuators or interact with MoveIt; it only raises a safety flag.
 
-## Behaviour Summary
+## Build instructions
 
-- Idle until the user presses SPACE (/ui/player_done → True).
-- Waits for /vision/blocks to publish block poses.
-- Executes a pick-sequence for each new pose:
-  1. Opens gripper (/prongs/cmd → "gap 30")
-  2. Approaches target pose using Manipulation action
-  3. Closes gripper (/prongs/cmd → "gap 5")
-  4. Optionally lifts object slightly
-- Repeats automatically when new vision data arrives.
-
-## Topics & Actions
-
-| Interface     | Name                    | Type                         | Description                                   |
-|---------------|-------------------------|------------------------------|-----------------------------------------------|
-| Subscribes    | /ui/player_done         | std_msgs/Bool                | Player input (SPACE = start)                  |
-| Subscribes    | /vision/blocks          | geometry_msgs/PoseArray      | Detected block poses                          |
-| Subscribes    | /prongs/force_g         | std_msgs/Float32             | Feedback from force sensor                    |
-| Publishes     | /prongs/cmd             | std_msgs/String              | Commands to open/close gripper                |
-| Action Client | /manipulation_action    | manipulation/Manipulation    | Sends approach/lift goals to MoveIt           |
-
-## Parameters
-
-| Parameter        | Default   | Description                                 |
-|------------------|----------:|---------------------------------------------|
-| open_gap_mm      | 30.0      | Fully open gap                              |
-| approach_gap_mm  | 18.0      | Near-block gap                              |
-| close_gap_mm     | 5.0       | Grip gap                                    |
-| lift_dz          | 0.05      | Vertical lift distance (m)                  |
-| approach_action  | linear_move | Manipulation action type for approach    |
-| lift_action      | free_move | Manipulation action type for lift           |
-| result_timeout_s | 10.0      | Timeout per manipulation goal               |
-
-## Launch
-
-Run:
-
-1. Build the workspace
-cd ~/jenga_ws  # or your workspace root
-colcon build --packages-select brain_node ui_node
+From your ROS 2 workspace:
+```
+cd ~/ros2_ws
+colcon build --packages-select brain
 source install/setup.bash
+```
 
-2. Launch both nodes together
-# Launch the brain node (orchestrates logic)
-ros2 launch brain_node brain.launch.py
+(Note: use setup.bash, not setup.bas.)
 
+## How to run
 
-In another terminal:
+Assuming all hardware drivers are running and `/prongs/force_g` is being published:
+```
+ros2 run brain brain
+```
 
-# Launch the UI node (sends SPACE → /ui/player_done)
-ros2 run ui_node player_ui
+Override the threshold via parameters:
+```
+ros2 run brain brain --ros-args -p threshold_g:=100.0
+```
+
+## Topics
+
+### Subscriptions
+| Topic | Type | Description |
+|---|---:|---|
+| `/prongs/force_g` | `std_msgs/msg/Float32` | Force from gripper in grams |
+
+### Publications
+| Topic | Type | Description |
+|---|---:|---|
+| `/safety/stop` | `std_msgs/msg/Bool` | `True` when force exceeds threshold (ESTOP) |
+
+If you need the node to reset automatically, check the node parameters for a hysteresis or reset-band option (e.g., a fraction of the threshold) and set it appropriately.
