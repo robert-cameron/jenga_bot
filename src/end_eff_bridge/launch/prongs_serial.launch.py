@@ -13,8 +13,15 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'port': port,
-            'baud': baud
+            'baud': baud,
+            'open_left_deg': 150.0,
+            'open_right_deg': 30.0,
+            'cp_left_deg': 55.0,
+            'cp_right_deg': 115.0,
+            'cf_left_deg': 0.0,
+            'cf_right_deg': 180.0
         }]
+
     )
 
     return LaunchDescription([
