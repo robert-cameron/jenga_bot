@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
+from rclpy.duration import Duration
 from std_msgs.msg import Float32, Bool
 
 
@@ -11,6 +12,12 @@ class ForceStopper(Node):
         # === Parameters ===
         self.declare_parameter('threshold_g', 80.0)
         self.threshold_g = float(self.get_parameter('threshold_g').value)
+
+        # Cooldown duration after trigger (seconds)
+        self.cooldown_s = 3
+
+        # Timestamp of last trigger
+        self.last_trigger_time = None
 
         # === I/O ===
         self.force_sub = self.create_subscription(
@@ -26,31 +33,34 @@ class ForceStopper(Node):
             10
         )
 
-        self.tripped = False
         self.get_logger().info(
             f'force_stopper up. Watching /prongs/force_g > {self.threshold_g:.1f} g.'
         )
 
     def on_force(self, msg: Float32):
+        now = self.get_clock().now()
         force = msg.data
-        # If force exceeds threshold, publish stop
+
+        # === Ignore readings during cooldown ===
+        if self.last_trigger_time is not None:
+            if (now - self.last_trigger_time) < Duration(seconds=self.cooldown_s):
+                # Still in the cooldown window → ignore force
+                return
+            else:
+                # Cooldown done → clear
+                self.last_trigger_time = None
+
+        # === Trigger stop when threshold crossed ===
         if force > self.threshold_g:
-            if not self.tripped:
-                self.get_logger().warn(
-                    f'Force {force:.1f} g > {self.threshold_g:.1f} g → EMERGENCY STOP!'
-                )
-                self.tripped = True
-            # Publish stop (latched behaviour by logic, not by QoS)
-            stop_msg = Bool()
-            stop_msg.data = True
-            self.stop_pub.publish(stop_msg)
-        else:
-            # Optional: reset latch when back below threshold
-            if self.tripped and force < self.threshold_g * 0.8:
-                self.get_logger().info(
-                    f'Force dropped to {force:.1f} g, resetting stop latch.'
-                )
-                self.tripped = False
+            self.get_logger().warn(
+                f'Force {force:.1f} g > {self.threshold_g:.1f} g → EMERGENCY STOP!'
+            )
+
+            # Publish 1-shot stop pulse
+            self.stop_pub.publish(Bool(data=True))
+
+            # Start cooldown
+            self.last_trigger_time = now
 
 
 def main():
