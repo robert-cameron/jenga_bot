@@ -51,6 +51,8 @@ public:
         cmd.data = "o";
         gripper_pub_->publish(cmd);
 
+        rclcpp::sleep_for(std::chrono::seconds(1));
+
         if (!linear_drop_action_.execute(move_group, approach_action_.getApproachGoal(goal, 0.005), goal_handle))
         {
             feedback->feedback = "PullMoveAction failed during drop.";

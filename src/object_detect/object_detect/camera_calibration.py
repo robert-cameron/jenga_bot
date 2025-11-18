@@ -15,9 +15,9 @@ class CameraCalibration(Node):
         self.listener = TransformListener(self.tf_buffer, self)
 
         self.base = "base_link"
-        self.ee = "end_effector"
+        self.ee = "end_eff_contact"
         self.camera = "camera_link"
-        self.tower = "tower_base"
+        self.tower = "block42f"
 
         self.timer = self.create_timer(0.5, self.compute)
 

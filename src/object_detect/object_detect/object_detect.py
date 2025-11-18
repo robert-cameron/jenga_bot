@@ -98,7 +98,7 @@ class objectDetect(Node):
         self.block_marker_pub = self.create_publisher(MarkerArray, 'vision/markers', 10)
         self.blocks_publisher = self.create_publisher(PoseArray, 'vision/blocks', 10)
 
-        self.k = 10  # size of smoothing window
+        self.k = 100  # size of smoothing window
         self.base_history = deque(maxlen=self.k)
         self.rot_history = deque(maxlen=self.k)      # rotation smoothing
 
@@ -178,8 +178,8 @@ class objectDetect(Node):
         except Exception as e:
             self.get_logger().error(f"Error in pixel_2_global: {str(e)}")
             return None
-
-    def routine_callback(self):
+        
+    def calculate_tower(self):
         try:
             """Detect ArUco markers and broadcast TF for each one."""
             if self.cv_image_raw is None:
@@ -306,38 +306,6 @@ class objectDetect(Node):
                 tf1.transform.rotation.w,
             ]
             self.rot_history.append(current_q)
-
-            # === AVERAGE TRANSLATION ===
-            avg_pos = np.mean(self.base_history, axis=0)
-            avg_x, avg_y, avg_z = avg_pos.tolist()
-
-            # === AVERAGE ROTATION ===
-            avg_q = self.average_quaternions(self.rot_history)
-            avg_qx, avg_qy, avg_qz, avg_qw = avg_q
-
-            self.get_logger().info(
-                f"Averaged base: x={avg_x:.3f}, y={avg_y:.3f}, z={avg_z:.3f} | "
-                f"rot=({avg_qx:.3f}, {avg_qy:.3f}, {avg_qz:.3f}, {avg_qw:.3f})"
-            )
-
-            # Broadcast averaged TF
-            transform = TransformStamped()
-            transform.header.stamp = self.get_clock().now().to_msg()
-            transform.header.frame_id = "camera_color_optical_frame"
-            transform.child_frame_id = "tower_base"
-
-            # Smoothed translation
-            transform.transform.translation.x = avg_x
-            transform.transform.translation.y = avg_y
-            transform.transform.translation.z = avg_z
-
-            # Smoothed rotation
-            transform.transform.rotation.x = avg_qx
-            transform.transform.rotation.y = avg_qy
-            transform.transform.rotation.z = avg_qz
-            transform.transform.rotation.w = avg_qw
-
-            self.tf_broadcaster.sendTransform(transform)
 
             left_bottom_edge_point = base_point - (tower_width / 2) * right + (tower_width / 2) * forward
             # left_bottom_edge_point = base_point - (tower_width / 2) * right 
@@ -655,7 +623,43 @@ class objectDetect(Node):
             
         except Exception as e:
             self.get_logger().error(f"Error in routine_callback: {str(e)}")
+
+    def routine_callback(self):
+        self.calculate_tower()
+        
         try:
+            # === AVERAGE TRANSLATION ===
+            avg_pos = np.mean(self.base_history, axis=0)
+            avg_x, avg_y, avg_z = avg_pos.tolist()
+
+            # === AVERAGE ROTATION ===
+            avg_q = self.average_quaternions(self.rot_history)
+            avg_qx, avg_qy, avg_qz, avg_qw = avg_q
+
+            self.get_logger().info(
+                f"Averaged base: x={avg_x:.3f}, y={avg_y:.3f}, z={avg_z:.3f} | "
+                f"rot=({avg_qx:.3f}, {avg_qy:.3f}, {avg_qz:.3f}, {avg_qw:.3f})"
+            )
+
+            # Broadcast averaged TF
+            transform = TransformStamped()
+            transform.header.stamp = self.get_clock().now().to_msg()
+            transform.header.frame_id = "camera_color_optical_frame"
+            transform.child_frame_id = "tower_base"
+
+            # Smoothed translation
+            transform.transform.translation.x = avg_x
+            transform.transform.translation.y = avg_y
+            transform.transform.translation.z = avg_z
+
+            # Smoothed rotation
+            transform.transform.rotation.x = avg_qx
+            transform.transform.rotation.y = avg_qy
+            transform.transform.rotation.z = avg_qz
+            transform.transform.rotation.w = avg_qw
+
+            self.tf_broadcaster.sendTransform(transform)
+
             cv2.imshow('Image', self.cv_image)
             cv2.waitKey(1)
         except Exception as e:

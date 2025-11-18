@@ -22,7 +22,7 @@ class ApproachMoveAction : public BaseAction
 {
 public:
   explicit ApproachMoveAction(rclcpp::Node::SharedPtr node,
-                              geometry_msgs::msg::Pose end_eff_pose, double approach_distance = 0.02, double speed = 1.0)
+                              geometry_msgs::msg::Pose end_eff_pose, double approach_distance = 0.02, double speed = 0.8)
       : node_(node),
         end_eff_pose(end_eff_pose),
         approach_distance(approach_distance),
