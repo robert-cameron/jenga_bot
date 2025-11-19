@@ -632,10 +632,11 @@ class objectDetect(Node):
             avg_pos = np.mean(self.base_history, axis=0)
             avg_x, avg_y, avg_z = avg_pos.tolist()
 
-            # === AVERAGE ROTATION ===
+            # === AVERAGE ROTATION === (not used for final orientation, but kept for transform step)
             avg_q = self.average_quaternions(self.rot_history)
             avg_qx, avg_qy, avg_qz, avg_qw = avg_q
 
+            # Build pose for camera frame → base_link transform
             base_point_cam = PoseStamped()
             base_point_cam.header.stamp = self.get_clock().now().to_msg()
             base_point_cam.header.frame_id = "camera_color_optical_frame"
@@ -647,6 +648,7 @@ class objectDetect(Node):
             base_point_cam.pose.orientation.z = float(avg_qz)
             base_point_cam.pose.orientation.w = float(avg_qw)
 
+            # Transform into base_link frame
             try:
                 base_point_in_base = self.tf_buffer.transform(
                     base_point_cam,
@@ -657,27 +659,93 @@ class objectDetect(Node):
                 self.get_logger().warn(f"Transform failed: {e}")
                 return
 
-            self.get_logger().info(
-                f"Averaged base: x={avg_x:.3f}, y={avg_y:.3f}, z={avg_z:.3f} | "
-                f"rot=({avg_qx:.3f}, {avg_qy:.3f}, {avg_qz:.3f}, {avg_qw:.3f})"
-            )
+            # Extract smoothed X,Y
+            bx = base_point_in_base.pose.position.x
+            by = base_point_in_base.pose.position.y
 
-            # Broadcast averaged TF
+            # === FIXED Z VALUE ===
+            bz = 0.0     # <-- choose your fixed Z height in base_link frame
+
+            # === FORCE ORIENTATION TO BE PARALLEL TO base_link Z AXIS ===
+            # i.e., zero roll, zero pitch, yaw only
+            # Compute yaw from original quaternion (optional) or set yaw=0
+            orig_q = base_point_in_base.pose.orientation
+            # Convert quaternion → yaw
+            yaw = np.arctan2(
+                2.0 * (orig_q.w * orig_q.z + orig_q.x * orig_q.y),
+                1.0 - 2.0 * (orig_q.y**2 + orig_q.z**2)
+            ) - np.pi / 2.0  # rotate 90 degrees to align with tower
+
+            # Build yaw-only quaternion (roll=0, pitch=0)
+            final_qx = 0.0
+            final_qy = 0.0
+            final_qz = np.sin(yaw / 2.0)
+            final_qw = np.cos(yaw / 2.0)
+
+            # === BROADCAST TRANSFORM ===
             transform = TransformStamped()
             transform.header.stamp = self.get_clock().now().to_msg()
             transform.header.frame_id = "base_link"
+            transform.child_frame_id = "tower_base_in_base"
+
+            transform.transform.translation.x = bx
+            transform.transform.translation.y = by
+            transform.transform.translation.z = bz  # <- fixed Z
+
+            transform.transform.rotation.x = final_qx
+            transform.transform.rotation.y = final_qy
+            transform.transform.rotation.z = final_qz
+            transform.transform.rotation.w = final_qw
+
+            self.tf_broadcaster.sendTransform(transform)
+
+            # === Create pose in base_link BEFORE broadcasting TF ===
+            pose_base = PoseStamped()
+            pose_base.header.stamp = self.get_clock().now().to_msg()
+            pose_base.header.frame_id = "base_link"
+
+            pose_base.pose.position.x = bx
+            pose_base.pose.position.y = by
+            pose_base.pose.position.z = bz
+
+            pose_base.pose.orientation.x = final_qx
+            pose_base.pose.orientation.y = final_qy
+            pose_base.pose.orientation.z = final_qz
+            pose_base.pose.orientation.w = final_qw
+
+            # === Transform that pose into camera_color_optical_frame ===
+            try:
+                pose_in_camera = self.tf_buffer.transform(
+                    pose_base,
+                    "camera_color_optical_frame",
+                    timeout=rclpy.duration.Duration(seconds=0.2)
+                )
+            except Exception as e:
+                self.get_logger().warn(f"Transform back to camera frame failed: {e}")
+                return
+
+            # You can now use pose_in_camera anywhere you want
+            self.get_logger().info(
+                f"tower_base in camera frame: "
+                f"x={pose_in_camera.pose.position.x:.3f}, "
+                f"y={pose_in_camera.pose.position.y:.3f}, "
+                f"z={pose_in_camera.pose.position.z:.3f}"
+            )
+
+            # === FINALLY broadcast tower_base TF in camera_color_optical_frame ===
+            transform = TransformStamped()
+            transform.header.stamp = self.get_clock().now().to_msg()
+            transform.header.frame_id = "camera_color_optical_frame"
             transform.child_frame_id = "tower_base"
 
-            # Smoothed translation
-            transform.transform.translation.x = base_point_in_base.pose.position.x
-            transform.transform.translation.y = base_point_in_base.pose.position.y
-            transform.transform.translation.z = base_point_in_base.pose.position.z
+            transform.transform.translation.x = pose_in_camera.pose.position.x
+            transform.transform.translation.y = pose_in_camera.pose.position.y
+            transform.transform.translation.z = pose_in_camera.pose.position.z
 
-            # Smoothed rotation
-            transform.transform.rotation.x = base_point_in_base.pose.orientation.x
-            transform.transform.rotation.y = base_point_in_base.pose.orientation.y
-            transform.transform.rotation.z = base_point_in_base.pose.orientation.z
-            transform.transform.rotation.w = base_point_in_base.pose.orientation.w
+            transform.transform.rotation.x = pose_in_camera.pose.orientation.x
+            transform.transform.rotation.y = pose_in_camera.pose.orientation.y
+            transform.transform.rotation.z = pose_in_camera.pose.orientation.z
+            transform.transform.rotation.w = pose_in_camera.pose.orientation.w
 
             self.tf_broadcaster.sendTransform(transform)
 
