@@ -9,7 +9,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 from rclpy.node import Node
 from sensor_msgs.msg import Image, CameraInfo
-from geometry_msgs.msg import TransformStamped, PointStamped, Pose, Point, PoseArray, Quaternion
+from geometry_msgs.msg import TransformStamped, PointStamped, Pose, Point, PoseArray, Quaternion, PoseStamped
 from visualization_msgs.msg import Marker, MarkerArray
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -636,6 +636,27 @@ class objectDetect(Node):
             avg_q = self.average_quaternions(self.rot_history)
             avg_qx, avg_qy, avg_qz, avg_qw = avg_q
 
+            base_point_cam = PoseStamped()
+            base_point_cam.header.stamp = self.get_clock().now().to_msg()
+            base_point_cam.header.frame_id = "camera_color_optical_frame"
+            base_point_cam.pose.position.x = float(avg_x)
+            base_point_cam.pose.position.y = float(avg_y)
+            base_point_cam.pose.position.z = float(avg_z)
+            base_point_cam.pose.orientation.x = float(avg_qx)
+            base_point_cam.pose.orientation.y = float(avg_qy)
+            base_point_cam.pose.orientation.z = float(avg_qz)
+            base_point_cam.pose.orientation.w = float(avg_qw)
+
+            try:
+                base_point_in_base = self.tf_buffer.transform(
+                    base_point_cam,
+                    "base_link",
+                    timeout=rclpy.duration.Duration(seconds=0.2)
+                )
+            except Exception as e:
+                self.get_logger().warn(f"Transform failed: {e}")
+                return
+
             self.get_logger().info(
                 f"Averaged base: x={avg_x:.3f}, y={avg_y:.3f}, z={avg_z:.3f} | "
                 f"rot=({avg_qx:.3f}, {avg_qy:.3f}, {avg_qz:.3f}, {avg_qw:.3f})"
@@ -644,19 +665,19 @@ class objectDetect(Node):
             # Broadcast averaged TF
             transform = TransformStamped()
             transform.header.stamp = self.get_clock().now().to_msg()
-            transform.header.frame_id = "camera_color_optical_frame"
+            transform.header.frame_id = "base_link"
             transform.child_frame_id = "tower_base"
 
             # Smoothed translation
-            transform.transform.translation.x = avg_x
-            transform.transform.translation.y = avg_y
-            transform.transform.translation.z = avg_z
+            transform.transform.translation.x = base_point_in_base.pose.position.x
+            transform.transform.translation.y = base_point_in_base.pose.position.y
+            transform.transform.translation.z = base_point_in_base.pose.position.z
 
             # Smoothed rotation
-            transform.transform.rotation.x = avg_qx
-            transform.transform.rotation.y = avg_qy
-            transform.transform.rotation.z = avg_qz
-            transform.transform.rotation.w = avg_qw
+            transform.transform.rotation.x = base_point_in_base.pose.orientation.x
+            transform.transform.rotation.y = base_point_in_base.pose.orientation.y
+            transform.transform.rotation.z = base_point_in_base.pose.orientation.z
+            transform.transform.rotation.w = base_point_in_base.pose.orientation.w
 
             self.tf_broadcaster.sendTransform(transform)
 
