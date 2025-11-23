@@ -664,7 +664,7 @@ class objectDetect(Node):
             by = base_point_in_base.pose.position.y
 
             # === FIXED Z VALUE ===
-            bz = 0.0     # <-- choose your fixed Z height in base_link frame
+            bz = 0.03     # <-- choose your fixed Z height in base_link frame
 
             # === FORCE ORIENTATION TO BE PARALLEL TO base_link Z AXIS ===
             # i.e., zero roll, zero pitch, yaw only
@@ -674,8 +674,9 @@ class objectDetect(Node):
             yaw = np.arctan2(
                 2.0 * (orig_q.w * orig_q.z + orig_q.x * orig_q.y),
                 1.0 - 2.0 * (orig_q.y**2 + orig_q.z**2)
-            ) - np.pi / 2.0  # rotate 90 degrees to align with tower
-
+            # ) - np.pi / 2.0  # rotate 90 degrees to align with tower
+            ) 
+            
             # Build yaw-only quaternion (roll=0, pitch=0)
             final_qx = 0.0
             final_qy = 0.0
