@@ -1,5 +1,18 @@
 # Project Title
 
+## Table of Contents
+- [Background and Customers](#background-and-customers)
+- [System Structure (Node Graph)](#system-structure-node-graph)
+- [End-Effector Configuration](#end-effector-configuration)
+- [Installation and Setup](#installation-and-setup)
+- [Running the System](#running-the-system)
+- [Results and Discussion](#results-and-discussion)
+- [Contributors and Roles](#contributors-and-roles)
+- [File/Repo Structure](#filerepo-structure)
+- [References](#references)
+
+---
+
 ## Background and Customers
 - **Problem Context**: Briefly describe the background of the project and the motivation.  
 - **Target Customers/Users**: Who is the intended end-user or customer?  
