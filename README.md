@@ -1,79 +1,58 @@
 # Project Title
 
-## Table of Contents
-- [Project Overview](#project-overview)
-- [System Architecture](#system-architecture)
-- [Technical Components](#technical-components)
-- [Installation and Setup](#installation-and-setup)
-- [Running the System](#running-the-system)
-- [Results and Demonstration](#results-and-demonstration)
-- [Discussion and Future Work](#discussion-and-future-work)
-- [Contributors and Roles](#contributors-and-roles)
-- [Repository Structure](#repository-structure)
-- [References and Acknowledgements](#references-and-acknowledgements)
+## Background and Customers
+- **Problem Context**: Briefly describe the background of the project and the motivation.  
+- **Target Customers/Users**: Who is the intended end-user or customer?  
+- **System Purpose**: What problem does the robot solve?  
 
 ---
 
-## Project Overview
-- **Problem Statement**: What task or customer requirement does your system solve?  
-- **Robot Functionality**: Short summary of what the robot does.  
-- **Demo Video**: Embed or link to a short video showing one full cycle of operation.  
+## System Structure (Node Graph)
+- **ROS2 Node Graph**: Insert diagram (from `rqt_graph` or custom schematic).  
+- **Node Functions**: Short description of each node’s role.  
+- **Topics/Services/Actions**: List and explain key communication interfaces.  
+- **Closed-Loop Behavior**: Provide a behavior tree or state machine diagram.  
 
 ---
 
-## System Architecture
-- **ROS2 Node Diagram**: Include rqt_graph or custom schematic.  
-- **Package-Level Architecture**: Show node interactions and topics.  
-- **Behavior Tree / State Machine**: Diagram of closed-loop behavior.  
-- **Node Descriptions**: Brief explanation of each node’s role.  
-- **Custom Interfaces**: List and explain any custom message types.  
-
----
-
-## Technical Components
-- **Computer Vision**: Describe the vision pipeline and its role.  
-- **Custom End-Effector**: Photos/renders, assembly details, drawings, control overview.  
-- **System Visualization**: How the system is visualized (e.g., RViz).  
-- **Closed-Loop Operation**: Feedback method and real-time adaptation.  
+## End-Effector Configuration
+- **Design Overview**: Describe the custom end-effector.  
+- **Photos/Renders**: Include images or CAD drawings.  
+- **Assembly Details**: Mechanical structure and integration notes.  
+- **Control and Integration**: How the end-effector is controlled and connected to the system.  
 
 ---
 
 ## Installation and Setup
-- Step-by-step installation instructions for dependencies.  
-- Hardware setup (UR5e, camera, Teensy, etc.).  
-- Environment variables, configuration files, calibration procedures.  
+- **Dependencies**: List required packages, libraries, and versions.  
+- **Workspace Setup**: Step-by-step instructions to build the ROS2 workspace.  
+- **Hardware Setup**: UR5e connection, camera, Teensy, etc.  
+- **Environment Variables/Calibration**: Any required configuration files or calibration steps.  
 
 ---
 
 ## Running the System
-- Clear launch instructions (single command preferred).  
-- Example commands (e.g., `ros2 launch project_name bringup.launch.py`).  
-- Expected behavior and outputs.  
-- Troubleshooting notes (optional).  
+- **Launch Instructions**: Provide a single command to start the system.  
+- **Example Commands**: e.g. `ros2 launch project_name bringup.launch.py`.  
+- **Expected Behavior**: Describe what the user should see.  
+- **Troubleshooting Notes**: Optional tips for common issues.  
 
 ---
 
-## Results and Demonstration
-- Performance against design goals.  
-- Quantitative results (accuracy, repeatability).  
-- Photos, figures, or videos of operation.  
-- Robustness, adaptability, innovation highlights.  
-
----
-
-## Discussion and Future Work
-- Major engineering challenges and solutions.  
-- Opportunities for improvement or extensions.  
-- Novelty and effectiveness of your approach.  
+## Results and Discussion
+- **Performance**: How the system meets design goals.  
+- **Quantitative Results**: Accuracy, repeatability, robustness.  
+- **Demonstration Media**: Photos, figures, or videos of operation.  
+- **Discussion**: Challenges faced, solutions, and opportunities for improvement.  
 
 ---
 
 ## Contributors and Roles
-- Team Member A — Vision  
-- Team Member B — Planning  
-- Team Member C — Hardware  
+- **Team Member A** — Vision  
+- **Team Member B** — Planning  
+- **Team Member C** — Hardware  
 *(Adjust as needed)*  
 
 ---
 
-## Repository Structure
+## File/Repo Structure
