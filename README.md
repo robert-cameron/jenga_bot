@@ -69,3 +69,11 @@
 ---
 
 ## File/Repo Structure
+
+
+
+---
+
+## References
+- External libraries, tutorials, or prior codebases used.  
+- Acknowledgements to demonstrators, peers, or collaborators.  
