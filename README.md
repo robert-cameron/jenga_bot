@@ -1,4 +1,4 @@
-# Project Title
+# JengaBot
 
 ## Table of Contents
 - [Background and Customers](#background-and-customers)
@@ -61,10 +61,10 @@
 ---
 
 ## Contributors and Roles
-- **Team Member A** — Vision  
-- **Team Member B** — Planning  
-- **Team Member C** — Hardware  
-*(Adjust as needed)*  
+- **Robert Cameron** — 
+- **Thomas Crundwell** —  
+- **Akhil Govan** —
+- **Haoran Wen** — End effector
 
 ---
 
