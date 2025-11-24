@@ -29,10 +29,38 @@
 ---
 
 ## End-Effector Configuration
-- **Design Overview**: Describe the custom end-effector.  
-- **Photos/Renders**: Include images or CAD drawings.  
-- **Assembly Details**: Mechanical structure and integration notes.  
-- **Control and Integration**: How the end-effector is controlled and connected to the system.  
+
+**Lightweight 3D-Printed Frame**  
+The JengaBot end-effector is built from a **lightweight 3D-printed structure**.  
+It includes **two grippers** and **two servos**.  
+
+![End Effector CAD Render](docs/end_effector_cad.png)
+
+**Gripper Motion**  
+Horizontal movement of the grippers is achieved through a **gear–rack mechanism**.  
+This motion is **directly driven by servo rotation**.  
+
+**Force Sensor Integration**  
+One gripper tip is equipped with a **flexible force sensor**.  
+This sensor determines whether a block can be pushed **without destabilizing the tower**.  
+
+![Force Sensor Placement](docs/force_sensor.png)
+
+**Mechanical Design Iterations**  
+The mechanical structure was designed in **SolidWorks**.  
+STL files were exported for **3D printing**.  
+Due to geometric constraints and issues found during development, the design underwent **multiple iterations**.  
+
+**Servo Control**  
+Servos are controlled by an **Arduino**.  
+A **servo expansion board** is used to optimize wiring and save I/O pins.  
+
+![Servo Wiring Diagram](docs/servo_wiring.png)
+
+**Mounting Method**  
+The end-effector is mounted using an **existing slot fixture**, ensuring stable integration with the robot system.  
+
+
 
 ---
 
