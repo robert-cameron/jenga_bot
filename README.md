@@ -83,7 +83,7 @@ ros2 run brain brain --ros-args -p threshold_g:=100.0
 If you need the node to reset automatically, check the node parameters for a hysteresis or reset-band option (e.g., a fraction of the threshold) and set it appropriately.
 
 
-## End-Effector Configuration
+# End-Effector Configuration
 
 **Lightweight 3D-Printed Frame**  
 The JengaBot end-effector is built from a **lightweight 3D-printed structure**.  
