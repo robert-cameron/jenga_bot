@@ -1,8 +1,9 @@
 # JengaBot
 
-#### Table of Contents
+## Table of Contents
 - [Background and Customers](#background-and-customers)
 - [System Structure (Node Graph)](#system-structure-node-graph)
+  - [Brain Node](#brain-node)
 - [End-Effector Configuration](#end-effector-configuration)
 - [Installation and Setup](#installation-and-setup)
 - [Running the System](#running-the-system)
@@ -13,14 +14,14 @@
 
 ---
 
-#### Background and Customers
+# Background and Customers
 - **Problem Context**: Briefly describe the background of the project and the motivation.  
 - **Target Customers/Users**: Who is the intended end-user or customer?  
 - **System Purpose**: What problem does the robot solve?  
 
 ---
 
-#### System Structure (Node Graph)
+# System Structure (Node Graph)
 - **ROS2 Node Graph**: Insert diagram (from `rqt_graph` or custom schematic).  
 - **Node Functions**: Short description of each node’s role.  
 - **Topics/Services/Actions**: List and explain key communication interfaces.  
@@ -28,9 +29,9 @@
 
 ---
 
-#### Node: Brain node
+# Node: Brain node
 
-# Overview
+## Overview
 
 This node monitors gripper force and raises a safety stop when the measured force exceeds a configured threshold.
 
@@ -118,7 +119,7 @@ The end-effector is mounted using an **existing slot fixture**, ensuring stable 
 
 ---
 
-## Installation and Setup
+# Installation and Setup
 - **Dependencies**: List required packages, libraries, and versions.  
 - **Workspace Setup**: Step-by-step instructions to build the ROS2 workspace.  
 - **Hardware Setup**: UR5e connection, camera, Teensy, etc.  
@@ -126,7 +127,7 @@ The end-effector is mounted using an **existing slot fixture**, ensuring stable 
 
 ---
 
-## Running the System
+# Running the System
 - **Launch Instructions**: Provide a single command to start the system.  
 - **Example Commands**: e.g. `ros2 launch project_name bringup.launch.py`.  
 - **Expected Behavior**: Describe what the user should see.  
@@ -134,7 +135,7 @@ The end-effector is mounted using an **existing slot fixture**, ensuring stable 
 
 ---
 
-## Results and Discussion
+# Results and Discussion
 - **Performance**: How the system meets design goals.  
 - **Quantitative Results**: Accuracy, repeatability, robustness.  
 - **Demonstration Media**: Photos, figures, or videos of operation.  
@@ -142,7 +143,7 @@ The end-effector is mounted using an **existing slot fixture**, ensuring stable 
 
 ---
 
-## Contributors and Roles
+# Contributors and Roles
 - **Robert Cameron** — 
 - **Thomas Crundwell** —  
 - **Akhil Govan** —
@@ -150,12 +151,12 @@ The end-effector is mounted using an **existing slot fixture**, ensuring stable 
 
 ---
 
-## File/Repo Structure
+# File/Repo Structure
 
 
 
 ---
 
-## References
+# References
 - External libraries, tutorials, or prior codebases used.  
 - Acknowledgements to demonstrators, peers, or collaborators.  
