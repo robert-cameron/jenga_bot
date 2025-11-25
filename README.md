@@ -1,6 +1,6 @@
 # JengaBot
 
-## Table of Contents
+#### Table of Contents
 - [Background and Customers](#background-and-customers)
 - [System Structure (Node Graph)](#system-structure-node-graph)
 - [End-Effector Configuration](#end-effector-configuration)
@@ -13,14 +13,14 @@
 
 ---
 
-## Background and Customers
+#### Background and Customers
 - **Problem Context**: Briefly describe the background of the project and the motivation.  
 - **Target Customers/Users**: Who is the intended end-user or customer?  
 - **System Purpose**: What problem does the robot solve?  
 
 ---
 
-## System Structure (Node Graph)
+#### System Structure (Node Graph)
 - **ROS2 Node Graph**: Insert diagram (from `rqt_graph` or custom schematic).  
 - **Node Functions**: Short description of each node’s role.  
 - **Topics/Services/Actions**: List and explain key communication interfaces.  
@@ -28,7 +28,7 @@
 
 ---
 
-## Node: Brain node
+#### Node: Brain node
 
 # Overview
 
