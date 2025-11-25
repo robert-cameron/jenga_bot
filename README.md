@@ -82,6 +82,34 @@ ros2 run brain brain --ros-args -p threshold_g:=100.0
 
 If you need the node to reset automatically, check the node parameters for a hysteresis or reset-band option (e.g., a fraction of the threshold) and set it appropriately.
 
+# Node: UI Node
+
+# Overview
+
+ui_node provides a minimal terminal-based interface for human control. It reads keyboard input and publishes high-level commands to the robot during testing and gameplay.
+
+## Keyboard Mapping
+
+| Key      | Published Topic   | Message           | Description                         |
+|----------|-------------------|-------------------|-------------------------------------|
+| SPACE    | /ui/player_done   | Bool(data=True)   | Starts or signals robot turn        |
+| O / o    | /prongs/cmd       | "open"            | Opens gripper                       |
+| G / g    | /prongs/cmd       | "close"           | Closes gripper                      |
+| F / f    | /prongs/cmd       | "force"           | Requests force reading              |
+| Q / q    | (none)            | (none)            | Quits UI node                       |
+
+## Topics
+
+| Direction | Topic            | Type             | Description                          |
+|-----------|------------------|------------------|--------------------------------------|
+| Publishes | /ui/player_done  | std_msgs/Bool    | Player "start" signal                |
+| Publishes | /prongs/cmd      | std_msgs/String  | Manual end-effector commands         |
+
+## Usage
+
+Run the UI node with ROS 2:
+
+
 
 # End-Effector Configuration
 
