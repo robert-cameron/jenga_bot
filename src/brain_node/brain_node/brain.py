@@ -233,7 +233,8 @@ class Brain(Node):
               If centre is IMMOVABLE, fall back to the side.
         - Skip rows with:
             * 1 block, OR
-            * 2 blocks but no centre (only pos1 + pos3).
+            * 2 blocks but no centre (only pos1 + pos3) UNLESS the centre
+              of that row has previously been tried and marked IMMOVABLE.
         """
 
         # Grab latest tower snapshot
@@ -283,21 +284,34 @@ class Brain(Node):
                     break
 
             elif count == 2:
-                # Only valid if centre is present
-                if not occ[2]:
-                    # two blocks but no centre: skip this row
-                    continue
-
-                # Blocks are centre + one side: try centre unless IMMOVABLE,
-                # then try the side, else skip
-                side = 1 if occ[1] else 3
-                for p in [2, side]:
-                    if (row_num, p) not in immovable:
-                        chosen_row_idx = i
-                        chosen_pos = p
+                # Case A: centre present (pos2 + one side)
+                if occ[2]:
+                    side = 1 if occ[1] else 3
+                    # Try centre first, then side, skipping immovable
+                    for p in [2, side]:
+                        if (row_num, p) not in immovable:
+                            chosen_row_idx = i
+                            chosen_pos = p
+                            break
+                    if chosen_row_idx is not None:
                         break
-                if chosen_row_idx is not None:
-                    break
+
+                # Case B: two side blocks only (pos1 + pos3, no centre)
+                else:
+                    # Normally we skip this row.
+                    # But if we previously tried the centre (row_num, 2)
+                    # and marked it IMMOVABLE, we're now allowed to try the sides.
+                    if (row_num, 2) in immovable:
+                        for p in [1, 3]:
+                            if occ[p] and (row_num, p) not in immovable:
+                                chosen_row_idx = i
+                                chosen_pos = p
+                                break
+                        if chosen_row_idx is not None:
+                            break
+                    else:
+                        # Centre was never tried → still skip this row
+                        continue
 
             else:
                 # count == 1 → skip this row entirely (don't touch single-block rows)
@@ -363,6 +377,7 @@ class Brain(Node):
         )
 
         return (push_tf, pull_tf, place_tf)
+
 
 
 def main():
