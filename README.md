@@ -84,7 +84,7 @@ If you need the node to reset automatically, check the node parameters for a hys
 
 # Node: UI Node
 
-# Overview
+## Overview
 
 ui_node provides a minimal terminal-based interface for human control. It reads keyboard input and publishes high-level commands to the robot during testing and gameplay.
 
