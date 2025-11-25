@@ -8,6 +8,7 @@ from std_msgs.msg import Float32, Bool
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import Bool, Float32
+from tower_interfaces.msg import Tower
 
 from manipulation.action import Manipulation
 
@@ -25,6 +26,17 @@ class Brain(Node):
 
         # Timestamp of last trigger
         self.last_trigger_time = None
+
+        # Get Jenga Blocks from Vision
+        self.tower_sub = self.create_subscription(
+            Tower,
+            '/tower_state',      
+            self.on_tower,
+            10,
+        )
+
+        self._tower_lock = threading.Lock()
+        self._latest_tower = None
 
         # === I/O ===
         self.force_sub = self.create_subscription(
@@ -164,13 +176,128 @@ class Brain(Node):
 
             # Start cooldown
             self.last_trigger_time = now
+    def on_tower(self, msg: Tower):
+        """Store the latest tower state from computer vision."""
+        with self._tower_lock:
+            self._latest_tower = msg
 
     def get_next_blocks(self):
         """
         Decide the next block targets for push, pull, and place.
+
+        Rules:
+        - Start from the second bottom row (index 1).
+        - Only consider rows with:
+            * 3 blocks  → push/pull the middle one (pos2), OR
+            * exactly 2 blocks AND the centre is present (pos2 + pos1 or pos2 + pos3).
+        - Skip rows with:
+            * 1 block, OR
+            * 2 blocks but no centre (only pos1 + pos3).
         """
-        # for now, cycle the same blocks every loop:
-        return ('block22f', 'block22b', 'block72b')
+
+        # Grab latest tower snapshot
+        with self._tower_lock:
+            tower = self._latest_tower
+
+        if tower is None or not tower.rows:
+            self.get_logger().warn('No tower data yet; using hard-coded fallback.')
+            return ('block22f', 'block22b', 'block72b')
+
+        rows = tower.rows
+        num_rows = len(rows)
+
+        chosen_row_idx = None
+        chosen_pos = None
+
+        # Start from second bottom row (index 1) and go upwards
+        for i in range(1, num_rows):
+            row = rows[i]
+
+            occ = {
+                1: bool(row.pos1),
+                2: bool(row.pos2),
+                3: bool(row.pos3),
+            }
+            count = sum(occ.values())
+
+            # Skip empty rows
+            if count == 0:
+                continue
+
+            # --- Apply your rules ---
+            if count == 3:
+                # 3 blocks → use centre
+                chosen_row_idx = i
+                chosen_pos = 2
+                break
+
+            if count == 2:
+                # Only valid if centre is present (pos2 + pos1 or pos2 + pos3)
+                if occ[2]:
+                    chosen_row_idx = i
+                    chosen_pos = 2
+                    break
+                else:
+                    # Two blocks but no centre (pos1+pos3) → skip this row
+                    continue
+
+            # count == 1 → skip this row entirely
+            # (don't remove from rows with a single block)
+            if count == 1:
+                continue
+
+        if chosen_row_idx is None or chosen_pos is None:
+            self.get_logger().warn(
+                'No suitable row found (needs 3 blocks or 2 with centre); using fallback.'
+            )
+            return ('block22f', 'block22b', 'block72b')
+
+        row_num = chosen_row_idx + 1  # rows are 1-based in frame names
+
+        # Push/pull frames for the chosen block
+        push_tf = f'block{row_num}{chosen_pos}f'
+        pull_tf = f'block{row_num}{chosen_pos}b'
+
+        # --- Decide where to place the block ---
+        # If the top row has 3 blocks → place ABOVE it (new row, centre back).
+        # If the top row has <3 blocks → place in the GAP on that row
+        # (prefer centre, then left, then right), back face.
+
+        top_row = rows[num_rows - 1]
+        top_row_num = num_rows
+
+        top_occ = {
+            1: bool(top_row.pos1),
+            2: bool(top_row.pos2),
+            3: bool(top_row.pos3),
+        }
+
+        if sum(top_occ.values()) == 3:
+            # Full top row → create a new row above, centre back
+            place_row = top_row_num + 1
+            place_pos = 2
+        else:
+            # There is at least one gap → fill it on the current top row
+            if not top_occ[2]:
+                place_row = top_row_num
+                place_pos = 2
+            elif not top_occ[1]:
+                place_row = top_row_num
+                place_pos = 1
+            else:
+                place_row = top_row_num
+                place_pos = 3
+
+        place_tf = f'block{place_row}{place_pos}b'
+
+        self.get_logger().info(
+            f'Chosen row {row_num}, pos {chosen_pos}: '
+            f'push_tf={push_tf}, pull_tf={pull_tf}, place_tf={place_tf}'
+        )
+
+        return (push_tf, pull_tf, place_tf)
+
+
 
 def main():
     rclpy.init()
