@@ -30,7 +30,7 @@ class Brain(Node):
         # Get Jenga Blocks from Vision
         self.tower_sub = self.create_subscription(
             Tower,
-            '/tower_state',      
+            '/vision/tower',      
             self.on_tower,
             10,
         )
