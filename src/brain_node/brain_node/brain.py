@@ -5,7 +5,7 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.duration import Duration
 from rclpy.executors import MultiThreadedExecutor
-from std_msgs.msg import Float32, Bool
+from std_msgs.msg import Float32, Bool, String
 
 from tower_interfaces.msg import Tower
 from manipulation.action import Manipulation
@@ -62,6 +62,12 @@ class Brain(Node):
             10
         )
 
+        self.prongs_mode_pub = self.create_publisher(
+            String,
+            '/prongs/mode',
+            10
+        )
+
         # startup action client
         self.manipulation_client = ActionClient(
             self,
@@ -69,7 +75,9 @@ class Brain(Node):
             '/manipulation_action'
         )
         # start the action chain once the executor is spinning.
-        self.sequence_timer = self.create_timer(0.5, self._start_sequence)
+        self.sequence_timer = self.create_timer(5, self._start_sequence)
+        self.create_timer(0.1, self._try_close_prongs)
+        self._prongs_closed = False
         self.sequence_thread = None
 
         self.get_logger().info(
@@ -98,6 +106,8 @@ class Brain(Node):
         while rclpy.ok():  # TODO: Add blocker to wait for robot's turn
             push_tf, pull_tf, place_tf = self.get_next_blocks()
 
+            self.get_logger().info(f'Starting Sequence for {push_tf}, {pull_tf} {place_tf}')
+
             moves = [
                 ('push_move', push_tf),
                 ('pull_move', pull_tf),
@@ -124,7 +134,11 @@ class Brain(Node):
 
                 if not success:
                     self.get_logger().error(f'{action_type} failed; stopping sequence.')
-                    return
+                    if action_type != 'push_move':
+                        self.get_logger().error('cannot recover from here: killing loop.')
+                        return # pull or place has failed. cannot recover from here 
+                    else:
+                        break
 
             self.get_logger().info('Push, pull, place cycle complete. Starting next cycle...')
 
@@ -142,6 +156,7 @@ class Brain(Node):
         def _on_result(future):
             try:
                 result = future.result().result
+                self.get_logger().debug(f"On result {result}")
                 outcome['succeeded'] = bool(result.result)
             except Exception as exc:
                 self.get_logger().error(f'Error waiting for {action_type} result: {exc}')
@@ -169,10 +184,13 @@ class Brain(Node):
         # wait for acceptance
         goal_sent.wait()
         if not outcome['accepted']:
+            self.get_logger().warn("Not Accepted")
             return False
 
         # wait for result
         goal_result.wait()
+        self.get_logger().warn(f"Goal Result {outcome['succeeded']}")
+
         return outcome['succeeded']
 
     # ------------------------------------------------------------------
@@ -244,7 +262,7 @@ class Brain(Node):
         if tower is None or not tower.rows:
             self.get_logger().warn('No tower data yet; using hard-coded fallback.')
             self._last_chosen_block = None
-            return ('block22f', 'block22b', 'block72b')
+            return ('', '', '')
 
         rows = tower.rows
         num_rows = len(rows)
@@ -322,7 +340,7 @@ class Brain(Node):
                 'No suitable row found (respecting immovable blocks); using fallback.'
             )
             self._last_chosen_block = None
-            return ('block22f', 'block22b', 'block72b')
+            return ('', '', '')
 
         row_num = chosen_row_idx + 1  # 1-based
 
@@ -330,8 +348,8 @@ class Brain(Node):
         self._last_chosen_block = (row_num, chosen_pos)
 
         # Push/pull frames for the chosen block
-        push_tf = f'block{row_num}{chosen_pos}f'
-        pull_tf = f'block{row_num}{chosen_pos}b'
+        push_tf = f'block{row_num}{chosen_pos}b'
+        pull_tf = f'block{row_num}{chosen_pos}f'
 
         # --- Decide where to place the block ---
         # If the top row has 3 blocks → place ABOVE it (new row, centre back).
@@ -363,7 +381,7 @@ class Brain(Node):
                 place_row = top_row_num
                 place_pos = 3
 
-        place_tf = f'block{place_row}{place_pos}b'
+        place_tf = f'block{place_row}{place_pos}f'
 
         self.get_logger().info(
             f'\n'
@@ -377,9 +395,26 @@ class Brain(Node):
         )
 
         return (push_tf, pull_tf, place_tf)
+    
+    def _try_close_prongs(self):
+        # If already done, stop checking
+        if self._prongs_closed:
+            return
 
+        count = self.prongs_mode_pub.get_subscription_count()
+        if count == 0:
+            # No subscriber yet → wait
+            self.get_logger().info("Waiting for /prongs/mode subscriber...")
+            return
 
+        # Subscriber exists → publish now
+        msg = String()
+        msg.data = "cf"
+        self.prongs_mode_pub.publish(msg)
+        self._prongs_closed = True
+        self.get_logger().info("Prongs closed after subscriber detected.")
 
+        # Kill the timer by returning without rescheduling (ROS2 will stop it)
 def main():
     rclpy.init()
     node = Brain()

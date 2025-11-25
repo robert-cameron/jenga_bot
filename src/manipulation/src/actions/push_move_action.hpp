@@ -60,11 +60,13 @@ public:
     // push
     feedback->feedback = "Executing push with linear move...";
     goal_handle->publish_feedback(feedback);
+    bool result = true;
     if (!linear_push_action_.execute(move_group, push_goal, goal_handle))
     {
       feedback->feedback = "PushMoveAction failed during push.";
       goal_handle->publish_feedback(feedback);
-      // if push fails, we still want it to retract. hence, don't return false
+      result = false;
+      // if push fails, we still want it to retract. hence, don't return false yet
     }
 
     rclcpp::sleep_for(std::chrono::seconds(1));
@@ -81,7 +83,7 @@ public:
 
     feedback->feedback = "PushMoveAction completed successfully.";
     goal_handle->publish_feedback(feedback);
-    return true;
+    return result;
   }
 
 private:

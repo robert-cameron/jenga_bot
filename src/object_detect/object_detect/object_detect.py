@@ -320,8 +320,8 @@ class objectDetect(Node):
 
             hsv = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
-            lower_green = np.array([90,208,129])
-            upper_green = np.array([107,255,201])
+            lower_green = np.array([78,48,82])
+            upper_green = np.array([98,255,140])
 
             # Threshold the image to get only green colors
             mask = cv2.inRange(hsv, lower_green, upper_green)
@@ -438,6 +438,8 @@ class objectDetect(Node):
 
             print(position_guesses)
 
+            print("points_x", points_x)
+
             kmeans_positions, labels = kmeans2(points_x, position_guesses, iter=10)
 
             kmeans_positions_to_labels = [ (i, kmeans_positions[i]) for i in range(len(kmeans_positions)) ]
@@ -534,7 +536,7 @@ class objectDetect(Node):
                 level_occupancy["occupancy"][pos] = True
                 tower_occupancy[level] = level_occupancy
 
-                label = height_cluster_labels[i]
+                label = labels[i]
                 if label == 0:
                     color = (255, 0, 255)  # left_one - magenta
                 elif label == 1:
@@ -682,7 +684,7 @@ class objectDetect(Node):
             ) 
             
 
-            final_yaw = yaw - np.pi / 2.0
+            final_yaw = yaw + np.pi / 2.0
             # Build yaw-only quaternion (roll=0, pitch=0)
             final_qx = 0.0
             final_qy = 0.0
@@ -706,10 +708,12 @@ class objectDetect(Node):
 
             self.tf_broadcaster.sendTransform(transform)
 
+            blocks_yaw = yaw + np.pi
+
             rotated_qx = 0.0
             rotated_qy = 0.0
-            rotated_qz = np.sin(yaw / 2.0)
-            rotated_qw = np.cos(yaw / 2.0)
+            rotated_qz = np.sin(blocks_yaw / 2.0)
+            rotated_qw = np.cos(blocks_yaw / 2.0)
 
             transform_rotated = TransformStamped()
             transform_rotated.header.stamp = self.get_clock().now().to_msg()

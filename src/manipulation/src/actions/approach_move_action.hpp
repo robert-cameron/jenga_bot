@@ -145,7 +145,7 @@ private:
       dyaw -= 360.0;
     while (dyaw <= -180.0)
       dyaw += 360.0;
-    const double TOL = 15.0;
+    const double TOL = 30.0;
     int face_id;
     if (std::fabs(dyaw) < TOL)
       face_id = 2;
