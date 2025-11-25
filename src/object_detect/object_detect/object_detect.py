@@ -16,6 +16,7 @@ from tf2_ros.transform_listener import TransformListener
 from tf2_geometry_msgs import do_transform_point
 from scipy.cluster.vq import kmeans2
 from scipy.cluster.hierarchy import linkage, fcluster
+from tower_interfaces.msg import Tower, TowerRow
 
 from collections import deque
 
@@ -97,6 +98,7 @@ class objectDetect(Node):
         # Publishers
         self.block_marker_pub = self.create_publisher(MarkerArray, 'vision/markers', 10)
         self.blocks_publisher = self.create_publisher(PoseArray, 'vision/blocks', 10)
+        self.tower_publisher = self.create_publisher(Tower, 'vision/tower', 10)
 
         self.k = 100  # size of smoothing window
         self.base_history = deque(maxlen=self.k)
@@ -209,6 +211,10 @@ class objectDetect(Node):
                 corners, marker_length, cameraMatrix, distCoeffs
             )
 
+            market_count = 0
+
+
+
             for i, marker_id in enumerate(ids.flatten()):
                 pts = corners[i][0]
                 rvec = rvecs[i]
@@ -232,6 +238,8 @@ class objectDetect(Node):
                 self.get_logger().info(f"ARUCO  {marker_id}: x={tx:.3f}, y={ty:.3f}, z={tz:.3f}")
                 marker_positions[marker_id] = (tx,ty, tz, quat[0], quat[1], quat[2], quat[3])
                 marker_positions_image[marker_id] = tuple(center)
+                if marker_id >= 1 and marker_id <= 4:
+                    market_count += 1
 
                 # Publish TF transform
                 transform = TransformStamped()
@@ -250,25 +258,19 @@ class objectDetect(Node):
 
             print(marker_positions)
 
+
+
             # Compute intersection only if marker 1 and 2 are found
-            if not (1 in marker_positions and 2 in marker_positions):
-                print("Markers 1 and 2 not both detected; skipping intersection computation.")
+            if market_count < 2:
+                print("Less than 2 markers detected not both detected; skipping intersection computation.")
                 return
             
-            try:
-                tf1 = self.tf_buffer.lookup_transform(
-                    "camera_color_optical_frame", "aruco_1", rclpy.time.Time()
-                )
-            except:
-                self.get_logger().warn("TF for marker 1 not available yet.")
-                return
-
             # Rotation matrix in WORLD FRAME
             quat = [
-                tf1.transform.rotation.x,
-                tf1.transform.rotation.y,
-                tf1.transform.rotation.z,
-                tf1.transform.rotation.w
+                marker_positions[1][3],
+                marker_positions[1][4],
+                marker_positions[1][5],
+                marker_positions[1][6]
             ]
             R1 = self.quaternion_to_rotation_matrix(quat)[0:3, 0:3]
 
@@ -299,13 +301,7 @@ class objectDetect(Node):
             self.base_history.append(base_point)
 
             # Store rotation from marker 1
-            current_q = [
-                tf1.transform.rotation.x,
-                tf1.transform.rotation.y,
-                tf1.transform.rotation.z,
-                tf1.transform.rotation.w,
-            ]
-            self.rot_history.append(current_q)
+            self.rot_history.append(quat)
 
             left_bottom_edge_point = base_point - (tower_width / 2) * right + (tower_width / 2) * forward
             # left_bottom_edge_point = base_point - (tower_width / 2) * right 
@@ -567,12 +563,19 @@ class objectDetect(Node):
             delete_all_marker.header.stamp = transform.header.stamp
             marker_array.markers.append(delete_all_marker)
 
+            tower = Tower()
+
             print("Tower Occupancy:")
             for level_key in sorted(tower_occupancy.keys()):
                 level_info = tower_occupancy[level_key]
                 side = level_info["side"]
                 occupancy = level_info["occupancy"]  # list of 3 bools for left/right positions in this level
                 level_index = level_key              # use height cluster index (lowest = 1)
+                tower_row = TowerRow(pos1=occupancy[0], pos2=occupancy[1], pos3=occupancy[2])
+                if level_key != len(tower.rows):
+                    self.get_logger().warn(f"Non-sequential tower level detected: {level_key} (expected {len(tower.rows)})")
+
+                tower.rows.append(tower_row)
 
                 for i, occupied in enumerate(occupancy):
                     if not occupied:
@@ -619,6 +622,7 @@ class objectDetect(Node):
 
             self.blocks_publisher.publish(block_poses)
             self.block_marker_pub.publish(marker_array)
+            self.tower_publisher.publish(tower)
 
             
         except Exception as e:
