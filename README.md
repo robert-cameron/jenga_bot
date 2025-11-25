@@ -3,7 +3,7 @@
 ## Table of Contents
 - [Background and Customers](#background-and-customers)
 - [System Structure (Node Graph)](#system-structure-node-graph)
-  - [Brain Node](#brain-node)
+- [Node: Brain Node](#brain-node)
 - [End-Effector Configuration](#end-effector-configuration)
 - [Installation and Setup](#installation-and-setup)
 - [Running the System](#running-the-system)
