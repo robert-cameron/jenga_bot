@@ -4,12 +4,10 @@ import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.duration import Duration
-from std_msgs.msg import Float32, Bool
 from rclpy.executors import MultiThreadedExecutor
-from rclpy.node import Node
-from std_msgs.msg import Bool, Float32
-from tower_interfaces.msg import Tower
+from std_msgs.msg import Float32, Bool
 
+from tower_interfaces.msg import Tower
 from manipulation.action import Manipulation
 
 
@@ -30,13 +28,25 @@ class Brain(Node):
         # Get Jenga Blocks from Vision
         self.tower_sub = self.create_subscription(
             Tower,
-            '/vision/tower',      
+            '/vision/tower',
             self.on_tower,
             10,
         )
 
         self._tower_lock = threading.Lock()
         self._latest_tower = None
+
+        # Track blocks that were too hard to push
+        self._immovable_lock = threading.Lock()
+        # set of (row_num, pos) tuples
+        self._immovable_blocks = set()
+
+        # Track which block we are currently pushing
+        # tuple (row_num, pos) or None
+        self._current_push_block = None
+
+        # Last chosen block from get_next_blocks (row_num, pos)
+        self._last_chosen_block = None
 
         # === I/O ===
         self.force_sub = self.create_subscription(
@@ -66,6 +76,9 @@ class Brain(Node):
             f'force_stopper up. Watching /prongs/force_g > {self.threshold_g:.1f} g.'
         )
 
+    # ------------------------------------------------------------------
+    # Sequence and actions
+    # ------------------------------------------------------------------
     def _start_sequence(self):
         """Kick off the move sequence once after startup."""
         self.sequence_timer.cancel()
@@ -96,8 +109,19 @@ class Brain(Node):
                     self.get_logger().error(f'TF frame missing for {action_type}; aborting sequence.')
                     return
 
+                # If this is the push, remember which block we are trying
+                if action_type == 'push_move':
+                    with self._immovable_lock:
+                        self._current_push_block = self._last_chosen_block
+
                 self.get_logger().info(f'Sending {action_type} targeting {tf}...')
                 success = self._send_goal_and_wait(action_type, tf)
+
+                # Clear current_push_block after push completes
+                if action_type == 'push_move':
+                    with self._immovable_lock:
+                        self._current_push_block = None
+
                 if not success:
                     self.get_logger().error(f'{action_type} failed; stopping sequence.')
                     return
@@ -151,7 +175,9 @@ class Brain(Node):
         goal_result.wait()
         return outcome['succeeded']
 
-
+    # ------------------------------------------------------------------
+    # Callbacks
+    # ------------------------------------------------------------------
     def on_force(self, msg: Float32):
         now = self.get_clock().now()
         force = msg.data
@@ -176,11 +202,24 @@ class Brain(Node):
 
             # Start cooldown
             self.last_trigger_time = now
+
+            # Mark the currently pushed block as immovable (if any)
+            with self._immovable_lock:
+                if self._current_push_block is not None:
+                    row_num, pos = self._current_push_block
+                    self._immovable_blocks.add(self._current_push_block)
+                    self.get_logger().warn(
+                        f'Marking block at row {row_num}, pos {pos} as IMMOVABLE due to high force.'
+                    )
+
     def on_tower(self, msg: Tower):
         """Store the latest tower state from computer vision."""
         with self._tower_lock:
             self._latest_tower = msg
 
+    # ------------------------------------------------------------------
+    # Jenga logic
+    # ------------------------------------------------------------------
     def get_next_blocks(self):
         """
         Decide the next block targets for push, pull, and place.
@@ -188,8 +227,10 @@ class Brain(Node):
         Rules:
         - Start from the second bottom row (index 1).
         - Only consider rows with:
-            * 3 blocks  → push/pull the middle one (pos2), OR
+            * 3 blocks → normally push/pull the middle one (pos2),
+              but if that block is marked IMMOVABLE, pick a side instead.
             * exactly 2 blocks AND the centre is present (pos2 + pos1 or pos2 + pos3).
+              If centre is IMMOVABLE, fall back to the side.
         - Skip rows with:
             * 1 block, OR
             * 2 blocks but no centre (only pos1 + pos3).
@@ -201,10 +242,15 @@ class Brain(Node):
 
         if tower is None or not tower.rows:
             self.get_logger().warn('No tower data yet; using hard-coded fallback.')
+            self._last_chosen_block = None
             return ('block22f', 'block22b', 'block72b')
 
         rows = tower.rows
         num_rows = len(rows)
+
+        # Snapshot immovable set
+        with self._immovable_lock:
+            immovable = set(self._immovable_blocks)
 
         chosen_row_idx = None
         chosen_pos = None
@@ -212,6 +258,7 @@ class Brain(Node):
         # Start from second bottom row (index 1) and go upwards
         for i in range(1, num_rows):
             row = rows[i]
+            row_num = i + 1  # 1-based for naming and immovable keys
 
             occ = {
                 1: bool(row.pos1),
@@ -224,35 +271,49 @@ class Brain(Node):
             if count == 0:
                 continue
 
-            # --- Apply your rules ---
+            # --- Apply your rules with immovable check ---
             if count == 3:
-                # 3 blocks → use centre
-                chosen_row_idx = i
-                chosen_pos = 2
-                break
-
-            if count == 2:
-                # Only valid if centre is present (pos2 + pos1 or pos2 + pos3)
-                if occ[2]:
-                    chosen_row_idx = i
-                    chosen_pos = 2
+                # Ideal order: centre, then sides — but skip immovable ones
+                for p in [2, 1, 3]:
+                    if occ[p] and (row_num, p) not in immovable:
+                        chosen_row_idx = i
+                        chosen_pos = p
+                        break
+                if chosen_row_idx is not None:
                     break
-                else:
-                    # Two blocks but no centre (pos1+pos3) → skip this row
+
+            elif count == 2:
+                # Only valid if centre is present
+                if not occ[2]:
+                    # two blocks but no centre: skip this row
                     continue
 
-            # count == 1 → skip this row entirely
-            # (don't remove from rows with a single block)
-            if count == 1:
+                # Blocks are centre + one side: try centre unless IMMOVABLE,
+                # then try the side, else skip
+                side = 1 if occ[1] else 3
+                for p in [2, side]:
+                    if (row_num, p) not in immovable:
+                        chosen_row_idx = i
+                        chosen_pos = p
+                        break
+                if chosen_row_idx is not None:
+                    break
+
+            else:
+                # count == 1 → skip this row entirely (don't touch single-block rows)
                 continue
 
         if chosen_row_idx is None or chosen_pos is None:
             self.get_logger().warn(
-                'No suitable row found (needs 3 blocks or 2 with centre); using fallback.'
+                'No suitable row found (respecting immovable blocks); using fallback.'
             )
+            self._last_chosen_block = None
             return ('block22f', 'block22b', 'block72b')
 
-        row_num = chosen_row_idx + 1  # rows are 1-based in frame names
+        row_num = chosen_row_idx + 1  # 1-based
+
+        # Save last chosen logical block for tracking during push
+        self._last_chosen_block = (row_num, chosen_pos)
 
         # Push/pull frames for the chosen block
         push_tf = f'block{row_num}{chosen_pos}f'
@@ -291,12 +352,17 @@ class Brain(Node):
         place_tf = f'block{place_row}{place_pos}b'
 
         self.get_logger().info(
-            f'Chosen row {row_num}, pos {chosen_pos}: '
-            f'push_tf={push_tf}, pull_tf={pull_tf}, place_tf={place_tf}'
+            f'\n'
+            f'=== JENGA MOVE DECISION ===\n'
+            f'  → Remove: row={row_num}, position={chosen_pos}\n'
+            f'  → push_tf:  {push_tf}\n'
+            f'  → pull_tf:  {pull_tf}\n'
+            f'  → place_tf: {place_tf}\n'
+            f'  → Immovable blocks: {sorted(list(immovable))}\n'
+            f'============================'
         )
 
         return (push_tf, pull_tf, place_tf)
-
 
 
 def main():
@@ -307,7 +373,6 @@ def main():
 
     try:
         executor.spin()
-
     finally:
         executor.shutdown()
         node.destroy_node()
