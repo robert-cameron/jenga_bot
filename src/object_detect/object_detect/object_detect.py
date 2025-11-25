@@ -681,17 +681,19 @@ class objectDetect(Node):
             # ) - np.pi / 2.0  # rotate 90 degrees to align with tower
             ) 
             
+
+            final_yaw = yaw - np.pi / 2.0
             # Build yaw-only quaternion (roll=0, pitch=0)
             final_qx = 0.0
             final_qy = 0.0
-            final_qz = np.sin(yaw / 2.0)
-            final_qw = np.cos(yaw / 2.0)
+            final_qz = np.sin(final_yaw / 2.0)
+            final_qw = np.cos(final_yaw / 2.0)
 
             # === BROADCAST TRANSFORM ===
             transform = TransformStamped()
             transform.header.stamp = self.get_clock().now().to_msg()
             transform.header.frame_id = "base_link"
-            transform.child_frame_id = "tower_base_in_base"
+            transform.child_frame_id = "tower_base"
 
             transform.transform.translation.x = bx
             transform.transform.translation.y = by
@@ -704,6 +706,27 @@ class objectDetect(Node):
 
             self.tf_broadcaster.sendTransform(transform)
 
+            rotated_qx = 0.0
+            rotated_qy = 0.0
+            rotated_qz = np.sin(yaw / 2.0)
+            rotated_qw = np.cos(yaw / 2.0)
+
+            transform_rotated = TransformStamped()
+            transform_rotated.header.stamp = self.get_clock().now().to_msg()
+            transform_rotated.header.frame_id = "base_link"
+            transform_rotated.child_frame_id = "tower_base_rotated"
+
+            transform_rotated.transform.translation.x = bx
+            transform_rotated.transform.translation.y = by
+            transform_rotated.transform.translation.z = bz  # <- fixed Z
+
+            transform_rotated.transform.rotation.x = rotated_qx
+            transform_rotated.transform.rotation.y = rotated_qy
+            transform_rotated.transform.rotation.z = rotated_qz
+            transform_rotated.transform.rotation.w = rotated_qw
+
+            self.tf_broadcaster.sendTransform(transform_rotated)
+
             # === Create pose in base_link BEFORE broadcasting TF ===
             pose_base = PoseStamped()
             pose_base.header.stamp = self.get_clock().now().to_msg()
@@ -711,12 +734,12 @@ class objectDetect(Node):
 
             pose_base.pose.position.x = bx
             pose_base.pose.position.y = by
-            pose_base.pose.position.z = bz
+            pose_base.pose.position.z = base_point_in_base.pose.position.z  # use original Z before fix
 
-            pose_base.pose.orientation.x = final_qx
-            pose_base.pose.orientation.y = final_qy
-            pose_base.pose.orientation.z = final_qz
-            pose_base.pose.orientation.w = final_qw
+            pose_base.pose.orientation.x = rotated_qx
+            pose_base.pose.orientation.y = rotated_qy
+            pose_base.pose.orientation.z = rotated_qz
+            pose_base.pose.orientation.w = rotated_qw
 
             # === Transform that pose into camera_color_optical_frame ===
             try:
@@ -741,7 +764,7 @@ class objectDetect(Node):
             transform = TransformStamped()
             transform.header.stamp = self.get_clock().now().to_msg()
             transform.header.frame_id = "camera_color_optical_frame"
-            transform.child_frame_id = "tower_base"
+            transform.child_frame_id = "tower_base_inaccurate_z"
 
             transform.transform.translation.x = pose_in_camera.pose.position.x
             transform.transform.translation.y = pose_in_camera.pose.position.y
