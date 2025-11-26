@@ -20,9 +20,9 @@ from tower_interfaces.msg import Tower, TowerRow
 
 from collections import deque
 
-block_length = 0.075  # meters
-block_width = 0.025  # meters
-block_height = 0.015  # meters
+block_length = 0.13  # meters
+block_width = 0.04  # meters
+block_height = 0.03  # meters
 
 # Used for vision, thus the width is greater
 tower_width = 0.13  # meters
@@ -103,6 +103,8 @@ class objectDetect(Node):
         self.k = 100  # size of smoothing window
         self.base_history = deque(maxlen=self.k)
         self.rot_history = deque(maxlen=self.k)      # rotation smoothing
+
+        self.tower_orientation = None
 
 
         print("Object Detection Node Initialized")
@@ -272,6 +274,9 @@ class objectDetect(Node):
                 marker_positions[1][5],
                 marker_positions[1][6]
             ]
+            if self.tower_orientation is not None:
+                print("Using stored tower orientation for rotation matrix.")
+                quat = self.tower_orientation
             R1 = self.quaternion_to_rotation_matrix(quat)[0:3, 0:3]
 
             # World-aligned marker axes
@@ -573,7 +578,10 @@ class objectDetect(Node):
                 side = level_info["side"]
                 occupancy = level_info["occupancy"]  # list of 3 bools for left/right positions in this level
                 level_index = level_key              # use height cluster index (lowest = 1)
-                tower_row = TowerRow(pos1=occupancy[0], pos2=occupancy[1], pos3=occupancy[2])
+                if side == "left":
+                    tower_row = TowerRow(pos1=occupancy[0], pos2=occupancy[1], pos3=occupancy[2])
+                else:
+                    tower_row = TowerRow(pos1=occupancy[2], pos2=occupancy[1], pos3=occupancy[0])
                 if level_key != len(tower.rows):
                     self.get_logger().warn(f"Non-sequential tower level detected: {level_key} (expected {len(tower.rows)})")
 
@@ -586,7 +594,7 @@ class objectDetect(Node):
                     pose = Pose()
                     # Compute X, Y, Z based on side and horizontal slot
                     x_pos = 0.0
-                    y_pos = [block_width, 0.0, -block_width][i]  # left/middle/right positions
+                    y_pos = [-block_width, 0.0, block_width][i]  # left/middle/right positions
                     z_pos = (level_index - 1) * block_height + block_height / 2  # center of block
 
                     if side == "left":
@@ -602,7 +610,7 @@ class objectDetect(Node):
 
                     # Create Marker
                     marker = Marker()
-                    marker.header.frame_id = "tower_base"
+                    marker.header.frame_id = "tower_base_rotated"
                     marker.header.stamp = transform.header.stamp
                     marker.ns = "tower_blocks"
                     marker.id = marker_id
@@ -780,6 +788,46 @@ class objectDetect(Node):
             transform.transform.rotation.w = pose_in_camera.pose.orientation.w
 
             self.tf_broadcaster.sendTransform(transform)
+
+
+
+
+            # Build yaw-only quaternion (roll=0, pitch=0)
+            image_qx = 0.0
+            image_qy = 0.0
+            image_qz = np.sin(yaw / 2.0)
+            image_qw = np.cos(yaw / 2.0)
+
+            pose_base = PoseStamped()
+            pose_base.header.stamp = self.get_clock().now().to_msg()
+            pose_base.header.frame_id = "base_link"
+
+            pose_base.pose.position.x = bx
+            pose_base.pose.position.y = by
+            pose_base.pose.position.z = base_point_in_base.pose.position.z  # use original Z before fix
+
+            pose_base.pose.orientation.x = image_qx
+            pose_base.pose.orientation.y = image_qy
+            pose_base.pose.orientation.z = image_qz
+            pose_base.pose.orientation.w = image_qw
+
+            # === Transform that pose into camera_color_optical_frame ===
+            try:
+                image_pose_in_camera = self.tf_buffer.transform(
+                    pose_base,
+                    "camera_color_optical_frame",
+                    timeout=rclpy.duration.Duration(seconds=0.2)
+                )
+            except Exception as e:
+                self.get_logger().warn(f"Transform back to camera frame failed: {e}")
+                return
+
+            # self.tower_orientation = [
+            #     image_pose_in_camera.pose.orientation.x,
+            #     image_pose_in_camera.pose.orientation.y,
+            #     image_pose_in_camera.pose.orientation.z,
+            #     image_pose_in_camera.pose.orientation.w
+            # ]
 
             cv2.imshow('Image', self.cv_image)
             cv2.waitKey(1)
