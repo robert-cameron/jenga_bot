@@ -1,0 +1,9 @@
+<library path="lib/libjenga_rqt_plugin">
+  <class name="gui_node/JengaRqtPlugin"
+         type="gui_node::JengaRqtPlugin"
+         base_class_type="rqt_gui_cpp::Plugin">
+    <description>
+      Jenga RQT plugin for visualization and control
+    </description>
+  </class>
+</library>
