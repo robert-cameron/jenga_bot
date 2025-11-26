@@ -68,6 +68,14 @@ class Brain(Node):
             10
         )
 
+        self.player_done_sub = self.create_subscription(
+            Bool,
+            '/ui/player_done',
+            self.on_player_done,
+            10,
+        )
+        self._player_start_event = threading.Event()
+
         # startup action client
         self.manipulation_client = ActionClient(
             self,
@@ -76,7 +84,7 @@ class Brain(Node):
         )
         # start the action chain once the executor is spinning.
         self.sequence_timer = self.create_timer(5, self._start_sequence)
-        self.create_timer(0.1, self._try_close_prongs)
+        #self.create_timer(0.1, self._try_close_prongs)
         self._prongs_closed = False
         self.sequence_thread = None
 
@@ -103,7 +111,11 @@ class Brain(Node):
             self.get_logger().error('Manipulation action server not available; aborting sequence.')
             return
 
-        while rclpy.ok():  # TODO: Add blocker to wait for robot's turn
+        while rclpy.ok():
+            self.get_logger().info('Waiting for player start signal on /ui/player_done...')
+            self._player_start_event.wait()
+            self._player_start_event.clear()
+
             push_tf, pull_tf, place_tf = self.get_next_blocks()
 
             self.get_logger().info(f'Starting Sequence for {push_tf}, {pull_tf} {place_tf}')
@@ -234,6 +246,11 @@ class Brain(Node):
         """Store the latest tower state from computer vision."""
         with self._tower_lock:
             self._latest_tower = msg
+
+    def on_player_done(self, msg: Bool):
+        if msg.data:
+            self.get_logger().info('Received player start signal; resuming robot loop.')
+            self._player_start_event.set()
 
     # ------------------------------------------------------------------
     # Jenga logic

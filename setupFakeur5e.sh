@@ -23,6 +23,12 @@ sleep 5
 
 gnome-terminal --tab -t "ManipulationServer" -e 'ros2 launch manipulation manipulation_launch.py'
 
+gnome-terminal --tab -t "EndEffServer" -e 'ros2 run end_eff_bridge bridge --ros-args -p port:=/dev/ttyUSB0 -p baud:=115200'
+
+sleep 5
+
+gnome-terminal --tab -t "BrainServer" -e 'ros2 launch brain_node brain.launch.py'
+
 # gnome-terminal --tab -t "EndEffServer" -e 'ros2 run end_eff_bridge bridge --ros-args -p port:=/dev/ttyUSB0 -p baud:=115200'
 
 # useful terminal commands 
