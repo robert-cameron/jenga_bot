@@ -320,8 +320,8 @@ class objectDetect(Node):
 
             hsv = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
-            lower_green = np.array([78,48,82])
-            upper_green = np.array([98,255,140])
+            lower_green = np.array([0,178,110])
+            upper_green = np.array([8,255,198])
 
             # Threshold the image to get only green colors
             mask = cv2.inRange(hsv, lower_green, upper_green)

@@ -23,6 +23,7 @@ TABLE_FRAME="table"
 PUBLISH_TABLE_IDENTITY=1
 
 TOWER_BASE_FRAME="tower_base_rotated"
+# TOWER_BASE_FRAME="tower_base_inaccurate_z"
 TOWER_X=0.6
 TOWER_Y=0.2
 TOWER_Z=0.03

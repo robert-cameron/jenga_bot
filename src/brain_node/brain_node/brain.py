@@ -84,7 +84,7 @@ class Brain(Node):
         )
         # start the action chain once the executor is spinning.
         self.sequence_timer = self.create_timer(5, self._start_sequence)
-        #self.create_timer(0.1, self._try_close_prongs)
+        self.create_timer(0.1, self._try_close_prongs)
         self._prongs_closed = False
         self.sequence_thread = None
 
@@ -116,43 +116,49 @@ class Brain(Node):
             self._player_start_event.wait()
             self._player_start_event.clear()
 
-            push_tf, pull_tf, place_tf = self.get_next_blocks()
+            successfully_pushed = False
 
-            self.get_logger().info(f'Starting Sequence for {push_tf}, {pull_tf} {place_tf}')
+            while not successfully_pushed:
+                push_tf, pull_tf, place_tf = self.get_next_blocks()
 
-            moves = [
-                ('push_move', push_tf),
-                ('pull_move', pull_tf),
-                ('place_move', place_tf),
-            ]
+                self.get_logger().info(f'Starting Sequence for {push_tf}, {pull_tf} {place_tf}')
 
-            for action_type, tf in moves:
-                if not tf:
-                    self.get_logger().error(f'TF frame missing for {action_type}; aborting sequence.')
-                    return
+                moves = [
+                    ('push_move', push_tf),
+                    ('pull_move', pull_tf),
+                    ('place_move', place_tf),
+                ]
 
-                # If this is the push, remember which block we are trying
-                if action_type == 'push_move':
-                    with self._immovable_lock:
-                        self._current_push_block = self._last_chosen_block
+                successfully_pushed = True
 
-                self.get_logger().info(f'Sending {action_type} targeting {tf}...')
-                success = self._send_goal_and_wait(action_type, tf)
+                for action_type, tf in moves:
+                    if not tf:
+                        self.get_logger().error(f'TF frame missing for {action_type}; aborting sequence.')
+                        return
 
-                # Clear current_push_block after push completes
-                if action_type == 'push_move':
-                    with self._immovable_lock:
-                        self._current_push_block = None
+                    # If this is the push, remember which block we are trying
+                    if action_type == 'push_move':
+                        with self._immovable_lock:
+                            self._current_push_block = self._last_chosen_block
 
-                if not success:
-                    self.get_logger().error(f'{action_type} failed; stopping sequence.')
-                    if action_type != 'push_move':
-                        self.get_logger().error('cannot recover from here: killing loop.')
-                        return # pull or place has failed. cannot recover from here 
-                    else:
-                        break
+                    self.get_logger().info(f'Sending {action_type} targeting {tf}...')
+                    success = self._send_goal_and_wait(action_type, tf)
 
-            self.get_logger().info('Push, pull, place cycle complete. Starting next cycle...')
+                    # Clear current_push_block after push completes
+                    if action_type == 'push_move':
+                        with self._immovable_lock:
+                            self._current_push_block = None
+
+                    if not success:
+                        self.get_logger().error(f'{action_type} failed; stopping sequence.')
+                        if action_type != 'push_move':
+                            self.get_logger().error('cannot recover from here: killing loop.')
+                            return # pull or place has failed. cannot recover from here 
+                        else:
+                            successfully_pushed = False
+                            break
+
+                self.get_logger().info('Push, pull, place cycle complete. Starting next cycle...')
 
     def _send_goal_and_wait(self, action_type: str, tf: str) -> bool:
         """Send a Manipulation goal and wait for the result."""
@@ -248,9 +254,12 @@ class Brain(Node):
             self._latest_tower = msg
 
     def on_player_done(self, msg: Bool):
+        # self.get_logger().info(f"recieved user signal {msg.data}")
         if msg.data:
             self.get_logger().info('Received player start signal; resuming robot loop.')
             self._player_start_event.set()
+        else:
+            self._player_start_event.clear()
 
     # ------------------------------------------------------------------
     # Jenga logic
