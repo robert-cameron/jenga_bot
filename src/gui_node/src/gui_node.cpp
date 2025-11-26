@@ -1,104 +1,80 @@
 #include <rclcpp/rclcpp.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#include <geometry_msgs/msg/pose.hpp>
-#include <tf2/LinearMath/Quaternion.h>
-#include <vector>
-#include <cmath>
-#include <cstdlib>  // for rand()
-
-struct BlockInfo {
-  double x;
-  double y;
-  double z;
-  double roll;
-  double pitch;
-  double yaw;
-};
+#include <geometry_msgs/msg/pose_array.hpp>
+#include <tower_interfaces/msg/tower.hpp>
+#include <tower_interfaces/msg/tower_row.hpp>
 
 class GuiNode : public rclcpp::Node {
 public:
   GuiNode() : Node("gui_node") {
     marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("jenga_markers", 10);
 
-    // 每 1 秒发布一次 MarkerArray
-    timer_ = this->create_wall_timer(
-      std::chrono::seconds(1),
-      std::bind(&GuiNode::publishMarkers, this));
+    // 订阅识别节点发布的 PoseArray
+    pose_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>(
+      "vision/blocks", 10,
+      std::bind(&GuiNode::poseCallback, this, std::placeholders::_1));
+
+    // 订阅识别节点发布的 Tower occupancy
+    tower_sub_ = this->create_subscription<tower_interfaces::msg::Tower>(
+      "vision/tower", 10,
+      std::bind(&GuiNode::towerCallback, this, std::placeholders::_1));
   }
 
 private:
-  void publishMarkers() {
+  void towerCallback(const tower_interfaces::msg::Tower::SharedPtr msg) {
+    latest_tower_ = *msg;  // 保存最新的 Tower 消息
+  }
+
+  void poseCallback(const geometry_msgs::msg::PoseArray::SharedPtr msg) {
     visualization_msgs::msg::MarkerArray marker_array;
 
     double block_length = 0.13;
     double block_width  = 0.04;
     double block_height = 0.03;
 
-    std::vector<std::vector<BlockInfo>> layer_infos = {
-      { {-0.0465, 0.0, 0.015, 0.0, 0.0, M_PI/2}, {0.0, 0.0, 0.015, 0.0, 0.0, M_PI/2}, {0.047, 0.0, 0.015, 0.0, 0.0, M_PI/2} },
-      { {0.0, -0.047, 0.045, 0.0, 0.0, M_PI/2}, {0.0, 0.0, 0.045, 0.0, 0.0, M_PI/2}, {0.0, 0.0465, 0.045, 0.0, 0.0, M_PI/2} },
-      { {-0.0465, 0.0, 0.075, 0.0, 0.0, M_PI/2}, {0.0, 0.0, 0.075, 0.0, 0.0, M_PI/2}, {0.047, 0.0, 0.075, 0.0, 0.0, M_PI/2} },
-      { {0.0, -0.047, 0.105, 0.0, 0.0, M_PI/2}, {0.0, 0.0, 0.105, 0.0, 0.0, M_PI/2}, {0.0, 0.0465, 0.105, 0.0, 0.0, M_PI/2} },
-      { {-0.0465, 0.0, 0.135, 0.0, 0.0, M_PI/2}, {0.0, 0.0, 0.135, 0.0, 0.0, M_PI/2}, {0.047, 0.0, 0.135, 0.0, 0.0, M_PI/2} },
-    };
+    int marker_id = 0;
+    for (const auto &pose : msg->poses) {
+      visualization_msgs::msg::Marker marker;
+      marker.header.frame_id = msg->header.frame_id;  // 使用识别节点的坐标系
+      marker.header.stamp = this->now();
+      marker.ns = "jenga";
+      marker.id = marker_id++;
+      marker.type = visualization_msgs::msg::Marker::CUBE;
+      marker.action = visualization_msgs::msg::Marker::ADD;
+      marker.pose = pose;
 
-    std::vector<int> is_ok_push_array;
-    for (int i = 0; i < 15; ++i) {
-      is_ok_push_array.push_back(rand() % 3 + 1);  // 1=灰色, 2=绿色, 3=橘色
-    }
+      marker.scale.x = block_length;
+      marker.scale.y = block_width;
+      marker.scale.z = block_height;
 
-    for (int layer = 0; layer < static_cast<int>(layer_infos.size()); ++layer) {
-      for (int i = 0; i < static_cast<int>(layer_infos[layer].size()); ++i) {
-        const BlockInfo& info = layer_infos[layer][i];
-        int index = layer * 3 + i;
+      // 默认颜色：灰色
+      marker.color.r = 0.5;
+      marker.color.g = 0.5;
+      marker.color.b = 0.5;
+      marker.color.a = 1.0;
 
-        geometry_msgs::msg::Pose pose;
-        pose.position.x = info.x;
-        pose.position.y = info.y;
-        pose.position.z = info.z;
+      // 如果 Tower occupancy 有数据，就根据占用情况上色
+      if (!latest_tower_.rows.empty()) {
+        int level = marker.id / 3;   // 每层 3 个积木
+        int pos   = marker.id % 3;   // 该层的第几个积木
 
-        tf2::Quaternion q;
-        q.setRPY(info.roll, info.pitch, info.yaw);
-        pose.orientation.x = q.x();
-        pose.orientation.y = q.y();
-        pose.orientation.z = q.z();
-        pose.orientation.w = q.w();
+        if (level < static_cast<int>(latest_tower_.rows.size())) {
+          const auto &row = latest_tower_.rows[level];
+          bool occupied = (pos == 0 ? row.pos1 : (pos == 1 ? row.pos2 : row.pos3));
 
-        bool horizontal = (layer % 2 == 0);
-        double sx = horizontal ? block_length : block_width;
-        double sy = horizontal ? block_width : block_length;
-        double sz = block_height;
-
-        visualization_msgs::msg::Marker marker;
-        marker.header.frame_id = "world";
-        marker.header.stamp = this->now();
-        marker.ns = "jenga";
-        marker.id = index;
-        marker.type = visualization_msgs::msg::Marker::CUBE;
-        marker.action = visualization_msgs::msg::Marker::ADD;
-        marker.pose = pose;
-        marker.scale.x = sx;
-        marker.scale.y = sy;
-        marker.scale.z = sz;
-
-        int status = is_ok_push_array[index];
-        if (status == 1) {
-          marker.color.r = 0.5;
-          marker.color.g = 0.5;
-          marker.color.b = 0.5;
-        } else if (status == 2) {
-          marker.color.r = 0.0;
-          marker.color.g = 1.0;
-          marker.color.b = 0.0;
-        } else if (status == 3) {
-          marker.color.r = 1.0;
-          marker.color.g = 0.5;
-          marker.color.b = 0.0;
+          if (occupied) {
+            marker.color.r = 0.0;
+            marker.color.g = 1.0;
+            marker.color.b = 0.0;  // 绿色：检测到
+          } else {
+            marker.color.r = 1.0;
+            marker.color.g = 0.0;
+            marker.color.b = 0.0;  // 红色：缺失
+          }
         }
-        marker.color.a = 1.0;
-
-        marker_array.markers.push_back(marker);
       }
+
+      marker_array.markers.push_back(marker);
     }
 
     marker_pub_->publish(marker_array);
@@ -106,7 +82,10 @@ private:
   }
 
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
-  rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr pose_sub_;
+  rclcpp::Subscription<tower_interfaces::msg::Tower>::SharedPtr tower_sub_;
+
+  tower_interfaces::msg::Tower latest_tower_;  // 保存最新的 Tower occupancy
 };
 
 int main(int argc, char *argv[]) {
@@ -115,3 +94,4 @@ int main(int argc, char *argv[]) {
   rclcpp::shutdown();
   return 0;
 }
+
