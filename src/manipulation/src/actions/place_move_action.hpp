@@ -16,7 +16,7 @@ public:
                              geometry_msgs::msg::Pose end_eff_pose,
                              double block_offset = 0.056,
                              double clearance_height = 0.04,
-                             double drop_height = 0.01,
+                             double drop_height = 0.02,
                              double move_speed = 0.2)
         : node_(node),
           gripper_pub_(node_->create_publisher<std_msgs::msg::String>("/prongs/cmd", 10)),
