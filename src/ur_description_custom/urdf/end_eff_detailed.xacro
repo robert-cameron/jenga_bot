@@ -4,7 +4,7 @@
   
   <link name="$(arg tf_prefix)end_eff_base_link">
     <visual>
-      <origin xyz="-1.077 0.155 0.15" rpy="-1.5707 0 -1.5707"/>
+      <origin xyz="-1.077 0.155 0.172" rpy="-1.5707 0 -1.5707"/>
       <geometry>
         <mesh filename="package://ur_description_custom/meshes/end_eff/assembly.stl" scale="0.001 0.001 0.001"/>
       </geometry>
