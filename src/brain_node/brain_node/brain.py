@@ -322,8 +322,8 @@ class Brain(Node):
                 # Case A: centre present (pos2 + one side)
                 if occ[2]:
                     side = 1 if occ[1] else 3
-                    # Try centre first, then side, skipping immovable
-                    for p in [2, side]:
+                    # Try side first, then centre, skipping immovable
+                    for p in [side, 2]:
                         if (row_num, p) not in immovable:
                             chosen_row_idx = i
                             chosen_pos = p
