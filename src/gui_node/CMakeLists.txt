@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(gui_node)
 
-# 基本依赖
+# Basic deps
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -13,14 +13,15 @@ find_package(pluginlib REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
 find_package(rviz_common REQUIRED)
 find_package(rviz_default_plugins REQUIRED)
+find_package(tower_interfaces REQUIRED)
 
-# 自动处理 Qt MOC/UIC/RCC
+# Qt moc/uic/rcc
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
 # -------------------------------
-# 可执行节点：gui_node
+# Executable node: gui_node
 # -------------------------------
 add_executable(gui_node src/gui_node.cpp)
 ament_target_dependencies(gui_node
@@ -28,13 +29,14 @@ ament_target_dependencies(gui_node
   visualization_msgs
   geometry_msgs
   tf2
+  tower_interfaces
 )
 install(TARGETS gui_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 # -------------------------------
-# RQT 插件：jenga_rqt_plugin
+# RQT plugin: jenga_rqt_plugin (optional)
 # -------------------------------
 add_library(jenga_rqt_plugin SHARED src/jenga_rqt_plugin.cpp)
 ament_target_dependencies(jenga_rqt_plugin
@@ -44,7 +46,7 @@ ament_target_dependencies(jenga_rqt_plugin
 )
 target_link_libraries(jenga_rqt_plugin Qt5::Widgets)
 
-# 导出插件描述文件
+# Export plugin description
 pluginlib_export_plugin_description_file(rqt_gui_cpp jenga_rqt_plugin.xml)
 
 install(TARGETS jenga_rqt_plugin
@@ -52,8 +54,15 @@ install(TARGETS jenga_rqt_plugin
 )
 
 # -------------------------------
-# 安装资源
+# Install resources
 # -------------------------------
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}/
 )
+
+# Install RViz config
+install(FILES launch/jenga_config.rviz
+  DESTINATION share/${PROJECT_NAME}/launch
+)
+
+ament_package()

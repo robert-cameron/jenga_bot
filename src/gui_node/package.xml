@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <package format="3">
   <name>gui_node</name>
   <version>0.0.1</version>
@@ -5,36 +6,41 @@
   <maintainer email="haoran@example.com">Haoran Wen</maintainer>
   <license>MIT</license>
 
-  <!-- 构建工具 -->
+  <!-- Build tool -->
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <!-- ROS2 基本依赖 -->
+  <!-- Core ROS2 deps -->
   <depend>rclcpp</depend>
   <depend>visualization_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>
   <depend>tf2</depend>
-  <depend>rviz2</depend>
-<depend>rviz_common</depend>
-<depend>rviz_default_plugins</depend>
 
-<depend>os_node</depend>
+  <!-- RViz deps -->
+  <depend>rviz_common</depend>
+  <depend>rviz_default_plugins</depend>
 
-  <!-- RQT 插件依赖 -->
+  <!-- Interface from detection node -->
+  <depend>tower_interfaces</depend>
+
+  <!-- External node (if present) -->
+  <depend>os_node</depend>
+
+  <!-- RQT plugin deps (if you use the plugin) -->
   <depend>rqt_gui</depend>
   <depend>rqt_gui_cpp</depend>
   <depend>qt_gui_cpp</depend>
   <depend>python_qt_binding</depend>
   <depend>pluginlib</depend>
 
-  <!-- Qt 依赖（根据 ROS2 版本选择 Qt5 或 Qt6） -->
+  <!-- Qt (runtime) -->
   <exec_depend>qtbase5-dev</exec_depend>
-  <!-- 如果是 ROS2 Humble 以后，可以改成 Qt6 -->
+  <!-- For Humble+ could switch to Qt6 -->
   <!-- <exec_depend>qtbase6-dev</exec_depend> -->
 
   <export>
     <build_type>ament_cmake</build_type>
-    <!-- 导出 RQT 插件 -->
+    <!-- Export RQT plugin -->
     <rqt_gui plugin="${prefix}/share/${PROJECT_NAME}/jenga_rqt_plugin.xml"/>
   </export>
 </package>
