@@ -10,6 +10,8 @@ from std_msgs.msg import Float32, Bool, String
 from tower_interfaces.msg import Tower
 from manipulation.action import Manipulation
 
+WAITING_POS = 'block92b' 
+
 
 class Brain(Node):
     def __init__(self):
@@ -127,6 +129,7 @@ class Brain(Node):
                     ('push_move', push_tf),
                     ('pull_move', pull_tf),
                     ('place_move', place_tf),
+                    ('approach_move', WAITING_POS),
                 ]
 
                 successfully_pushed = True
@@ -431,7 +434,7 @@ class Brain(Node):
         if count == 0:
             # No subscriber yet → wait
             self.get_logger().info("Waiting for /prongs/mode subscriber...")
-            return
+        #    return
 
         # Subscriber exists → publish now
         msg = String()
