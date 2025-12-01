@@ -239,21 +239,25 @@ The end-effector is mounted using an **existing slot fixture**, ensuring stable 
 
 Due to geometric constraints and issues found during development, the design underwent **multiple iterations**. 
 
-Version 0.0 (Prototype for MVP) 
+**Version 0.0 (Prototype for MVP)** 
+
+This is a simple prototype, only functional for pushing the blocks and providing the end effector pose for research and tests. 
 
 [missing images]
 
-Version 1.0: Original design (See figure below) 
+**Version 1.0:** 
+
+Original design (See figure below) 
 
 <div align="center">
   <img src="image/endeff1.png" alt="End effector v1" width="300"/>
 </div>
 
-Version 2.0:  
+**Version 2.0:**  
 
 Enlarged the servo mounting holes and optimized the structure to improve the convenience and accuracy of FDM printing.
 
-Version 3.0 (Final):  
+**Version 3.0 (Final):**  
 
 Adjusted the orientation of the mount to better align with the kinematics code, positioning the gripper further forward to reduce obstruction during motion.
 
