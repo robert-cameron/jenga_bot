@@ -146,7 +146,7 @@ Due to geometric constraints and issues found during development, the design und
 
 Version 1.0: Original design (See figure below) 
 
-![End effector v1](image/屏幕截图_2025-12-02_024002.png)
+![End effector v1](image/endeff1.png)
 
 
 ---
