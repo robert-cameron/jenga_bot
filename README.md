@@ -3,14 +3,20 @@
 ## Table of Contents
 - [Background and Customers](#background-and-customers)
 - [System Structure (Node Graph)](#system-structure-node-graph)
-- [Node: Brain Node](#brain-node)
-- [End-Effector Configuration](#end-effector-configuration)
+- [Technical Components: Computer Vision](#technical-components-computer-vision)
+- [Technical Components: Manipulation](#technical-components-manipulation)
+- [Technical Components: Brain Node](#technical-components-brain-node)
+- [Technical Components: UI Node](#technical-components-ui-node)
+- [Technical Components: System Visualisation](#technical-components-system-visualisation)
+- [Technical Components: Customized End-Effector](#technical-components-customized-end-effector)
 - [Installation and Setup](#installation-and-setup)
 - [Running the System](#running-the-system)
 - [Results and Discussion](#results-and-discussion)
 - [Contributors and Roles](#contributors-and-roles)
 - [File/Repo Structure](#filerepo-structure)
 - [References](#references)
+
+---
 
 ---
 
