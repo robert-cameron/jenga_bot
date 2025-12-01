@@ -10,7 +10,7 @@ from std_msgs.msg import Float32, Bool, String
 from tower_interfaces.msg import Tower
 from manipulation.action import Manipulation
 
-WAITING_POS = 'block92b' 
+WAITING_POS = 'block72b' 
 
 
 class Brain(Node):
