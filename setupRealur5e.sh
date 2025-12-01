@@ -30,6 +30,7 @@ gnome-terminal --tab -t "EndEffServer" -e 'ros2 run end_eff_bridge bridge --ros-
 sleep 5
 
 gnome-terminal --tab -t "BrainServer" -e 'ros2 launch brain_node brain.launch.py'
+gnome-terminal --tab -t "PlayerUI" -e 'ros2 run ui_node player_gui'
 
 # useful terminal commands 
 
