@@ -196,11 +196,21 @@ ui_node provides a minimal terminal-based interface for human control. It reads 
 
 # Technical Components: System Visualisation
 
-The robot features two simultaneous user interaction windows. The first window displays the state and posture of each block, indicating whether a block can be pushed and showing their relative positions. The second window enables basic operations and consolidates input and output states into a single interface, rather than presenting them as tedious, line‑by‑line terminal code. 
+The robot features two simultaneous user interaction windows. 
 
-![window1](image/window1.png)
+The first window displays the state and posture of each block, indicating whether a block can be pushed and showing their relative positions. 
 
-![window2](image/window2.png)
+<div align="center">
+  <img src="image/window1.png" alt="window1" width="300"/>
+</div>
+
+The second window enables basic operations and consolidates input and output states into a single interface, rather than presenting them as tedious, line‑by‑line terminal code. 
+
+<div align="center">
+  <img src="image/window2.png" alt="window2" width="300"/>
+</div>
+
+
 
 # Technical Components: Customized End-Effector 
 
@@ -235,7 +245,9 @@ Version 0.0 (Prototype for MVP)
 
 Version 1.0: Original design (See figure below) 
 
-![End effector v1](image/endeff1.png)
+<div align="center">
+  <img src="image/endeff1.png" alt="End effector v1" width="300"/>
+</div>
 
 Version 2.0:  
 
@@ -245,9 +257,14 @@ Version 3.0 (Final):
 
 Adjusted the orientation of the mount to better align with the kinematics code, positioning the gripper further forward to reduce obstruction during motion.
 
-![End effector v3](image/endeff2.png)
+<div align="center">
+  <img src="image/endeff2.png" alt="End effector v3" width="300"/>
+</div>
 
-![Engineering Drawing](image/endeffdrawing.png)
+<div align="center">
+  <img src="image/endeffdrawing.png" alt="Engineering Drawing" width="300"/>
+</div>
+
 
 
 ---
