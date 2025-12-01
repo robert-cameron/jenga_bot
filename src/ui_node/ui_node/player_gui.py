@@ -5,7 +5,7 @@ from tkinter import ttk
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Bool, String
+from std_msgs.msg import Bool, String, Float32
 
 
 class PlayerGUI(Node):
@@ -13,17 +13,33 @@ class PlayerGUI(Node):
     Simple window-based UI for the Jenga game.
 
     - "Start / Next Move" button publishes Bool(True) on /ui/player_done.
-    - Optional buttons for gripper control via /prongs/cmd.
+    - Prongs buttons send mode commands on /prongs/mode: 'o', 'cp', 'cf'.
+    - Subscribes to /prongs/force_g and exposes latest value via self.current_force_g.
     """
 
     def __init__(self):
         super().__init__('player_gui')
 
-        # ROS publishers
+        # ----- Publishers -----
         self.done_pub = self.create_publisher(Bool, '/ui/player_done', 10)
-        self.prongs_pub = self.create_publisher(String, '/prongs/cmd', 10)
+        self.prongs_mode_pub = self.create_publisher(String, '/prongs/mode', 10)
+
+        # ----- Force subscriber -----
+        self.current_force_g = 0.0
+        self.force_sub = self.create_subscription(
+            Float32,
+            '/prongs/force_g',
+            self.force_callback,
+            10
+        )
 
         self.get_logger().info("PlayerGUI node initialised.")
+
+    # ------------- ROS callbacks -------------
+
+    def force_callback(self, msg: Float32):
+        """Store the latest force in grams."""
+        self.current_force_g = msg.data
 
     # ------------- ROS publish helpers -------------
 
@@ -33,11 +49,11 @@ class PlayerGUI(Node):
         self.done_pub.publish(msg)
         self.get_logger().info("Sent /ui/player_done: True")
 
-    def send_prongs_cmd(self, cmd: str):
+    def send_prongs_mode(self, mode: str):
         msg = String()
-        msg.data = cmd
-        self.prongs_pub.publish(msg)
-        self.get_logger().info(f'Sent /prongs/cmd: "{cmd}"')
+        msg.data = mode
+        self.prongs_mode_pub.publish(msg)
+        self.get_logger().info(f'Sent /prongs/mode: "{mode}"')
 
 
 def main():
@@ -58,11 +74,8 @@ def main():
 
     root = tk.Tk()
     root.title("JengaBot – Player Console")
+    root.geometry("420x320")
 
-    # Make the window a reasonable size
-    root.geometry("400x250")
-
-    # Main frame
     main_frame = ttk.Frame(root, padding=20)
     main_frame.pack(fill="both", expand=True)
 
@@ -76,15 +89,14 @@ def main():
     info_label = ttk.Label(
         main_frame,
         text=(
-            "1. When you are ready for the robot to make a move,\n"
-            "   click the button below.\n"
-            "2. After the robot finishes and you've finished your turn,\n"
+            "1. Click “Start / Next Move” when you want the robot to move.\n"
+            "2. After the robot finishes and you've done your turn,\n"
             "   click it again for the next move."
         ),
         justify="left",
-        wraplength=360
+        wraplength=380
     )
-    info_label.pack(pady=(0, 15))
+    info_label.pack(pady=(0, 10))
 
     status_var = tk.StringVar(
         value="Click “Start / Next Move” when you’re ready."
@@ -97,12 +109,14 @@ def main():
     )
     status_label.pack(pady=(0, 10))
 
-    # --- Buttons ---
+    # --- Player start/next button ---
 
     def on_start_next():
         node.send_player_done()
-        status_var.set("Signal sent. Wait for the robot to finish, "
-                       "then click again for the next move.")
+        status_var.set(
+            "Signal sent. Wait for the robot to finish,\n"
+            "then click again for the next move."
+        )
 
     start_button = ttk.Button(
         main_frame,
@@ -111,24 +125,65 @@ def main():
     )
     start_button.pack(pady=(0, 15), ipadx=10, ipady=5)
 
-    # Optional: simple gripper controls
-    button_frame = ttk.Frame(main_frame)
-    button_frame.pack(pady=(0, 10))
+    # --- Prongs control buttons (use /prongs/mode: 'o', 'cp', 'cf') ---
 
-    def make_prongs_button(text, cmd):
-        return ttk.Button(
-            button_frame,
+    prongs_frame = ttk.LabelFrame(main_frame, text="Prongs Control")
+    prongs_frame.pack(pady=(0, 10), fill="x")
+
+    def make_mode_button(text: str, mode: str, col: int):
+        btn = ttk.Button(
+            prongs_frame,
             text=text,
-            command=lambda: node.send_prongs_cmd(cmd)
+            command=lambda: node.send_prongs_mode(mode)
         )
+        btn.grid(row=0, column=col, padx=5, pady=5, ipadx=5, ipady=3)
+        return btn
 
-    open_btn = make_prongs_button("Open Gripper", "open")
-    close_btn = make_prongs_button("Close Gripper", "close")
-    force_btn = make_prongs_button("Read Force", "force")
+    # Map to your CLI commands:
+    #  ros2 topic pub -1 /prongs/mode std_msgs/String "data: 'o'"
+    #  ros2 topic pub -1 /prongs/mode std_msgs/String "data: 'cp'"
+    #  ros2 topic pub -1 /prongs/mode std_msgs/String "data: 'cf'"
+    make_mode_button("Open (o)",        "o",  0)
+    make_mode_button("Grip Block (cp)", "cp", 1)
+    make_mode_button("Close Full (cf)","cf", 2)
 
-    open_btn.grid(row=0, column=0, padx=5, pady=5)
-    close_btn.grid(row=0, column=1, padx=5, pady=5)
-    force_btn.grid(row=0, column=2, padx=5, pady=5)
+    # --- Force display ---
+
+    force_frame = ttk.LabelFrame(main_frame, text="Force (g)")
+    force_frame.pack(pady=(10, 0), fill="x")
+
+    ttk.Label(force_frame, text="Current force:").grid(
+        row=0, column=0, padx=5, pady=5, sticky="w"
+    )
+
+    force_value_var = tk.StringVar(value="0.0 g")
+
+    # Use tk.Label (not ttk) so we can change foreground colour easily
+    force_value_label = tk.Label(
+        force_frame,
+        textvariable=force_value_var,
+        font=("Helvetica", 14, "bold"),
+        fg="green"
+    )
+    force_value_label.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+
+    THRESHOLD_G = 80.0
+
+    def refresh_force_label():
+        # Read from node (updated in ROS callback thread)
+        value = node.current_force_g
+        force_value_var.set(f"{value:.1f} g")
+
+        if value > THRESHOLD_G:
+            force_value_label.config(fg="red")
+        else:
+            force_value_label.config(fg="green")
+
+        # Schedule next update
+        root.after(100, refresh_force_label)  # every 100 ms
+
+    # Kick off periodic UI update
+    refresh_force_label()
 
     # Handle closing the window
     def on_close():
@@ -138,10 +193,8 @@ def main():
 
     root.protocol("WM_DELETE_WINDOW", on_close)
 
-    # Start Tk main loop (blocks until window closed)
     root.mainloop()
 
-    # Clean up ROS node when Tk exits
     spin_thread.join(timeout=1.0)
     node.destroy_node()
 
