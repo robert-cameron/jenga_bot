@@ -51,6 +51,8 @@ success, rvec, tvec = cv2.solvePnP(obj_points, img_points, cameraMatrix, distCoe
 if success:
     rvecs.append(rvec)
     tvecs.append(tvec)
+
+```
 ---
 
 
@@ -92,12 +94,11 @@ Assuming all hardware drivers are running and `/prongs/force_g` is being publish
 ```
 ros2 run brain brain
 ```
-
+```
 Override the threshold via parameters:
 ```
 ros2 run brain brain --ros-args -p threshold_g:=100.0
 ```
-
 ## Topics
 
 ### Subscriptions
