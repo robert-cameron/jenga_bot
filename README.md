@@ -94,7 +94,6 @@ Assuming all hardware drivers are running and `/prongs/force_g` is being publish
 ```
 ros2 run brain brain
 ```
-```
 Override the threshold via parameters:
 ```
 ros2 run brain brain --ros-args -p threshold_g:=100.0
@@ -188,6 +187,10 @@ Enlarged the servo mounting holes and optimized the structure to improve the con
 Version 3.0 (Final):  
 
 Adjusted the orientation of the mount to better align with the kinematics code, positioning the gripper further forward to reduce obstruction during motion.
+
+![End effector v3](image/endeff2.png)
+
+![Engineering Drawing](image/endeffdrawing.png)
 
 
 ---
