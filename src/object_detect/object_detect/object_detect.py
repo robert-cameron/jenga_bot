@@ -5,6 +5,7 @@ import os
 import numpy as np
 import pyrealsense2 as rs
 import math
+import copy
 from cv_bridge import CvBridge, CvBridgeError
 
 from rclpy.node import Node
@@ -103,6 +104,7 @@ class objectDetect(Node):
         self.k = 100  # size of smoothing window
         self.base_history = deque(maxlen=self.k)
         self.rot_history = deque(maxlen=self.k)      # rotation smoothing
+        self.tower_history = deque(maxlen=self.k)    # tower smoothing
 
         self.tower_orientation = None
 
@@ -353,48 +355,6 @@ class objectDetect(Node):
             cv2.line(self.cv_image, (cbx, cby), (rbx, rby), (255, 0, 0), 2)
             cv2.line(self.cv_image, (cbx, cby), (ctx, cty), (0, 0, 255), 2)
 
-            # positions = np.array([
-            #     [-tower_width/2,  centre_offset + left_offset,      0],   # left_one
-            #     [-tower_width/2,  0             + left_offset,      0],   # left_two
-            #     [-tower_width/2, -centre_offset + left_offset,      0],   # left_three
-            #     [-centre_offset, -tower_width/2,                    0],   # right_one
-            #     [0,              -tower_width/2,                    0],   # right_two
-            #     [centre_offset,  -tower_width/2,                    0],   # right_three
-            # ])
-
-            # position_names = [
-            #     "left_one", "left_two", "left_three",
-            #     "right_one", "right_two", "right_three"
-            # ]
-            # try:
-            #     # Transform from frame A -> B
-            #     transform = self.tf_buffer.lookup_transform(
-            #         'tower_base',             # target frame
-            #         'camera_color_optical_frame',      # source frame
-            #         rclpy.time.Time()
-            #     )
-            # except Exception as e:
-            #     self.get_logger().warn(f"Transform failed: {e}")
-            #     return
-
-            # count = 0
-            # for pos in positions:
-            #     count += 1
-            #     transformNew = TransformStamped()
-            #     transformNew.header.stamp = self.get_clock().now().to_msg()
-            #     transformNew.header.frame_id = "tower_base"
-            #     transformNew.child_frame_id = f"place_{count}"
-            #     x, y, z = pos.tolist()
-            #     print(f"Place position {count}: x={x:.3f}, y={y:.3f}, z={z:.3f}")
-            #     transformNew.transform.translation.x = x
-            #     transformNew.transform.translation.y = y
-            #     transformNew.transform.translation.z = z
-            #     transformNew.transform.rotation.x = 0.0
-            #     transformNew.transform.rotation.y = 0.0
-            #     transformNew.transform.rotation.z = 0.0
-            #     transformNew.transform.rotation.w = 1.0
-            #     self.tf_broadcaster.sendTransform(transformNew)
-
             # positions_x_y = np.array([ [p[0], p[1]] for p in positions ])
             points_x = np.empty((0, 1))
             
@@ -557,6 +517,8 @@ class objectDetect(Node):
 
                 cv2.rectangle(self.cv_image, (ix, iy), (ix + iw, iy + ih), color, 2)
 
+            self.tower_history.append(copy.deepcopy(tower_occupancy))
+
             block_poses = PoseArray()
             block_poses.header.stamp = transform.header.stamp
             block_poses.header.frame_id = "tower_base"
@@ -571,6 +533,8 @@ class objectDetect(Node):
             marker_array.markers.append(delete_all_marker)
 
             tower = Tower()
+
+            tower_occupancy = self.compute_mode_tower()
 
             print("Tower Occupancy:")
             for level_key in sorted(tower_occupancy.keys()):
@@ -871,7 +835,33 @@ class objectDetect(Node):
         # Normalize
         avg_q = avg_q / np.linalg.norm(avg_q)
         return avg_q.tolist()
+    
+    def tower_occupancy_to_string(self, tower_occupancy):
+        result = ""
+        for level in sorted(tower_occupancy.keys()):
+            side = "L" if tower_occupancy[level]["side"] == "left" else "R"
+            occupancy = tower_occupancy[level]["occupancy"]
+            result += f"{side}{occupancy[0]}{occupancy[1]}{occupancy[2]}" + " "
+        return result
+    
+    def compute_mode_tower(self):
+        if len(self.tower_history) == 0:
+            return None
+        
+        towers = {}
+        tower_map = {}
+        for tower in self.tower_history:
+            tower_str = self.tower_occupancy_to_string(tower)
+            if tower_str in towers:
+                towers[tower_str] += 1
+            else:
+                towers[tower_str] = 1
+                tower_map[tower_str] = tower
 
+        # Find the most common tower configuration
+        print("Tower configurations and their counts:", towers)
+        mode_tower = max(towers.items(), key=lambda item: item[1])[0]
+        return tower_map[mode_tower]
 
 def main():
     rclpy.init()
