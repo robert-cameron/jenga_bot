@@ -229,6 +229,10 @@ The end-effector is mounted using an **existing slot fixture**, ensuring stable 
 
 Due to geometric constraints and issues found during development, the design underwent **multiple iterations**. 
 
+Version 0.0 (Prototype for MVP) 
+
+[missing images]
+
 Version 1.0: Original design (See figure below) 
 
 ![End effector v1](image/endeff1.png)
