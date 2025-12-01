@@ -16,8 +16,11 @@ setup(
     description='Keyboard UI for game brain',
     license='MIT',
     entry_points={
-        'console_scripts': [
-            'player_ui = ui_node.player_ui:main',
-        ],
-    },
+    'console_scripts': [
+        'player_ui  = ui_node.player_ui:main',   
+        'player_gui = ui_node.player_gui:main',  # NEW window UI
+    ],
+},
+
+
 )
