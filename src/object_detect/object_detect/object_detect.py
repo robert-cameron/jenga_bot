@@ -262,20 +262,34 @@ class objectDetect(Node):
 
             print(marker_positions)
 
-
+            print("Marker count:", market_count, len(self.rot_history))
 
             # Compute intersection only if marker 1 and 2 are found
             if market_count < 2:
                 print("Less than 2 markers detected not both detected; skipping intersection computation.")
                 return
             
+            measuredQuaternions = np.empty((0, 4))
+
+            for i in range(1, 5):
+                if i in marker_positions:
+                    quat = [
+                        marker_positions[i][3],
+                        marker_positions[i][4],
+                        marker_positions[i][5],
+                        marker_positions[i][6]
+                    ]
+                    measuredQuaternions = np.append(measuredQuaternions, [quat], axis=0)
+
+            
             # Rotation matrix in WORLD FRAME
-            quat = [
-                marker_positions[1][3],
-                marker_positions[1][4],
-                marker_positions[1][5],
-                marker_positions[1][6]
-            ]
+            measuredQuaternion = self.average_quaternions(measuredQuaternions)
+
+            print("Marker Count:", market_count)
+            print("Measured Quaternion:", measuredQuaternion)
+            print("rot_history length:", len(self.rot_history))
+            self.rot_history.append(measuredQuaternion)
+
             if self.tower_orientation is not None:
                 print("Using stored tower orientation for rotation matrix.")
                 quat = self.tower_orientation
@@ -289,33 +303,46 @@ class objectDetect(Node):
 
 
             # Marker positions (already in same world frame!)
-            x1, y1, z1, *_ = marker_positions[1]
-            x2, y2, z2, *_ = marker_positions[2]
 
+            if 1 in marker_positions:
+                x1, y1, z1, *_ = marker_positions[1]
+                if 2 in marker_positions:
+                    x2, y2, z2, *_ = marker_positions[2]
+                    print("Using marker 1 and 2 for direction")
+                    direction = right
+                    tangent = forward
+                elif 4 in marker_positions:
+                    x2, y2, z2, *_ = marker_positions[4]
+                    print("Using marker 1 and 4 for direction")
+                    direction = right
+                    tangent = -forward
+            elif 3 in marker_positions:
+                x1, y1, z1, *_ = marker_positions[3]
+                if 2 in marker_positions:
+                    x2, y2, z2, *_ = marker_positions[2]
+                    print("Using marker 3 and 2 for direction")
+                    direction = -right
+                    tangent = forward
+                elif 4 in marker_positions:
+                    x2, y2, z2, *_ = marker_positions[4]
+                    print("Using marker 3 and 4 for direction")
+                    direction = -right
+                    tangent = -forward
 
-            # Compute intersection
-            direction = right + forward
-            direction = direction / np.linalg.norm(direction)
+            distance = np.sqrt(((x2-x1)**2 + (y2-y1)**2 + (z2-z1)**2)/ 2.0)
 
-            t = (y2 - y1) / direction[1]
-
-            distance = np.sqrt(((x2-x1)**2 + (y2-y1)**2)/2)
-
-            base_point = np.array([x1, y1, z1 ]) + right * distance
+            base_point = np.array([x1, y1, z1 ]) + direction * distance
             print("Base point before correction:", base_point)
 
            # Store base translation
             self.base_history.append(base_point)
 
-            # Store rotation from marker 1
-            self.rot_history.append(quat)
-
-            left_bottom_edge_point = base_point - (tower_width / 2) * right + (tower_width / 2) * forward
+            left_bottom_edge_point = base_point - (tower_width / 2) * direction + (tower_width / 2) * tangent
             # left_bottom_edge_point = base_point - (tower_width / 2) * right 
-            right_bottom_edge_point = base_point + (tower_width / 2) * right - (tower_width / 2) * forward
+            right_bottom_edge_point = base_point + (tower_width / 2) * direction - (tower_width / 2) * tangent
             # right_bottom_edge_point = base_point - (tower_width / 2) * forward
-            centre_bottom_edge_point = base_point - (tower_width / 2) * right - (tower_width / 2) * forward
-            centre_top_edge_point = base_point - (tower_width / 2) * right - (tower_width / 2) * forward + vertical * 0.6
+            centre_bottom_edge_point = base_point - (tower_width / 2) * direction - (tower_width / 2) * tangent
+            centre_top_edge_point = base_point - (tower_width / 2) * direction - (tower_width / 2) * tangent + vertical * 0.6
             # bottom_point_camera = self.transform_point_to_camera(bottom_point, from_frame="tower_base")
             (lbx, lby) = self.global_2_pixel([left_bottom_edge_point[0], left_bottom_edge_point[1], left_bottom_edge_point[2]])
             (rbx, rby) = self.global_2_pixel([right_bottom_edge_point[0], right_bottom_edge_point[1], right_bottom_edge_point[2]])
@@ -330,11 +357,14 @@ class objectDetect(Node):
             lower_green = np.array([0,178,110])
             upper_green = np.array([8,255,198])
 
+            # lower_green = np.array([90,208,129])
+            # upper_green = np.array([107,255,201])
+
             # Threshold the image to get only green colors
             mask = cv2.inRange(hsv, lower_green, upper_green)
 
             # Define a kernel (structuring element)
-            kernel = np.ones((2,2), np.uint8) # A 5x5 square kernel
+            # kernel = np.ones((2,2), np.uint8) # A 5x5 square kernel
 
             # Apply dilation
             # mask = cv2.dilate(mask, kernel, iterations = 1)
@@ -342,10 +372,16 @@ class objectDetect(Node):
             # Find contours of the green regions
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+            markers = []
+            for i in range(1, 5):
+                if i in marker_positions_image:
+                    markers.append(marker_positions_image[i])
+
+
             area_height = 400  # You can adjust this value as needed
-            lowest_point = max(marker_positions_image[1][1], marker_positions_image[2][1])
-            left = min(marker_positions_image[1][0], marker_positions_image[2][0])
-            right_image = max(marker_positions_image[1][0], marker_positions_image[2][0])
+            lowest_point = max(markers, key=lambda item: item[1])[1]
+            left = min(markers, key=lambda item: item[0])[0]
+            right_image = max(markers, key=lambda item: item[0])[0]
             area_top_left = (left - 70, lowest_point - area_height)
             area_bottom_right = (right_image + 70, lowest_point)
 
@@ -680,7 +716,12 @@ class objectDetect(Node):
 
             self.tf_broadcaster.sendTransform(transform)
 
-            blocks_yaw = yaw + np.pi
+            mode_tower = self.compute_mode_tower()
+
+            if mode_tower is not None and mode_tower[0]["side"] == "right":
+                blocks_yaw = yaw + np.pi / 2.0
+            else:
+                blocks_yaw = yaw + np.pi
 
             rotated_qx = 0.0
             rotated_qy = 0.0
@@ -753,9 +794,6 @@ class objectDetect(Node):
 
             self.tf_broadcaster.sendTransform(transform)
 
-
-
-
             # Build yaw-only quaternion (roll=0, pitch=0)
             image_qx = 0.0
             image_qy = 0.0
@@ -786,12 +824,12 @@ class objectDetect(Node):
                 self.get_logger().warn(f"Transform back to camera frame failed: {e}")
                 return
 
-            # self.tower_orientation = [
-            #     image_pose_in_camera.pose.orientation.x,
-            #     image_pose_in_camera.pose.orientation.y,
-            #     image_pose_in_camera.pose.orientation.z,
-            #     image_pose_in_camera.pose.orientation.w
-            # ]
+            self.tower_orientation = [
+                image_pose_in_camera.pose.orientation.x,
+                image_pose_in_camera.pose.orientation.y,
+                image_pose_in_camera.pose.orientation.z,
+                image_pose_in_camera.pose.orientation.w
+            ]
 
             cv2.imshow('Image', self.cv_image)
             cv2.waitKey(1)
