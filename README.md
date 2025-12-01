@@ -23,7 +23,9 @@ Over 40% of children spend significant hours alone at home each week, often with
 The primary users are children who need interactive companionship during periods of solitude. Parents are the key customers, as they seek reliable solutions that reduce screen dependency and provide peace of mind. Educational institutions and after‑school programs may also benefit from such systems, using them to enhance learning and social engagement in structured environments.  
 
 ## System Purpose  
-The robot is designed to provide interactive companionship and stimulating activities for children, offering a safe and engaging alternative to passive screen time. By fostering attention, creativity, and social interaction, it helps improve emotional well‑being and developmental outcomes. At the same time, it reassures parents that their children are meaningfully engaged even when alone at home.  
+The robot is designed to provide interactive companionship and stimulating activities for children, offering a safe and engaging alternative to passive screen time. Fostering attention, creativity, and social interaction helps improve emotional well‑being and developmental outcomes. At the same time, it reassures parents that their children are meaningfully engaged even when alone at home.  
+
+[Insert the video here]
 
 ---
 
@@ -35,7 +37,17 @@ The robot is designed to provide interactive companionship and stimulating activ
 
 ---
 
-# Node: Brain node
+# Technical Components: Computer vision
+
+---
+
+
+# Technical Components: Manipulation
+
+---
+
+
+# Technical Components: Brain node
 
 ## Overview
 
@@ -88,7 +100,10 @@ ros2 run brain brain --ros-args -p threshold_g:=100.0
 
 If you need the node to reset automatically, check the node parameters for a hysteresis or reset-band option (e.g., a fraction of the threshold) and set it appropriately.
 
-# Node: UI Node
+---
+
+
+# Technical Components: UI Node
 
 ## Overview
 
@@ -111,13 +126,18 @@ ui_node provides a minimal terminal-based interface for human control. It reads 
 | Publishes | /ui/player_done  | std_msgs/Bool    | Player "start" signal                |
 | Publishes | /prongs/cmd      | std_msgs/String  | Manual end-effector commands         |
 
-## Usage
-
-Run the UI node with ROS 2:
+---
 
 
+# Technical Components: System Visualisation
 
-# End-Effector Configuration
+The robot features two simultaneous user interaction windows. The first window displays the state and posture of each block, indicating whether a block can be pushed and showing their relative positions. The second window enables basic operations and consolidates input and output states into a single interface, rather than presenting them as tedious, line‑by‑line terminal code. 
+
+![window1](image/window1.png)
+
+![window2](image/window2.png)
+
+# Technical Components: Customized End-Effector 
 
 ## Features
 
@@ -147,6 +167,14 @@ Due to geometric constraints and issues found during development, the design und
 Version 1.0: Original design (See figure below) 
 
 ![End effector v1](image/endeff1.png)
+
+Version 2.0:  
+
+Enlarged the servo mounting holes and optimized the structure to improve the convenience and accuracy of FDM printing.
+
+Version 3.0 (Final):  
+
+Adjusted the orientation of the mount to better align with the kinematics code, positioning the gripper further forward to reduce obstruction during motion.
 
 
 ---
@@ -183,11 +211,7 @@ Version 1.0: Original design (See figure below)
 
 ---
 
-# File/Repo Structure
-
-
-
----
+# References
 
 # References
 - External libraries, tutorials, or prior codebases used.  
