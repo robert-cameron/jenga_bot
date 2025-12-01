@@ -143,8 +143,11 @@ The end-effector is mounted using an **existing slot fixture**, ensuring stable 
 ## Iterations
 
 Due to geometric constraints and issues found during development, the design underwent **multiple iterations**. 
+
 Version 1.0: Original design (See figure below) 
-/readme_asset/image01
+
+![End effector v1](image/屏幕截图_2025-12-02_024002.png)
+
 
 ---
 
