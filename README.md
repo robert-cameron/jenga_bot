@@ -58,6 +58,53 @@ if success:
 
 # Technical Components: Manipulation
 
+The **Manipulation Node** is responsible for executing robot arm actions using ROS 2, MoveIt, and TF2.  
+It provides an **action server** (`manipulation_action`) that accepts goals specifying either a target pose or a TF frame.  
+Based on the requested `action_type`, the node dispatches to specialized action classes such as **PushMoveAction**, **PullMoveAction**, **PlaceMoveAction**, **FreeMoveAction**, **LinearMoveAction**, and **ApproachMoveAction**.  
+
+The node integrates with MoveIt’s **MoveGroupInterface** to plan and execute trajectories.  
+It also sets up **collision objects** (walls, table, ceiling) in the planning scene to ensure safe motion planning.  
+Orientation and joint constraints can be applied to enforce specific end-effector orientations or joint limits.  
+The node continuously monitors goals, supports cancellation, and reports success or failure back to the client.
+
+### Key Features
+- **Action server** for manipulation goals (`manipulation_action`).
+- **Multiple action types**: push, pull, place, free, constrained, linear, approach.
+- **TF integration**: transforms target poses from TF frames into world coordinates.
+- **Collision-aware planning**: adds walls, table, and ceiling to the planning scene.
+- **Constraints**: orientation and joint constraints for safe and precise motion.
+
+### Code Excerpts
+
+**Action server creation:**
+```cpp
+action_server_ = rclcpp_action::create_server<Manipulation>(
+    this,
+    "manipulation_action",
+    std::bind(&ManipulationNode::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
+    std::bind(&ManipulationNode::handle_cancel, this, std::placeholders::_1),
+    std::bind(&ManipulationNode::handle_accepted, this, std::placeholders::_1));
+```
+**Dispatching actions:**
+```cpp
+if (goal->action_type == "push_move") {
+  action = std::make_unique<PushMoveAction>(shared_from_this(), getEndEffectorPose());
+} else if (goal->action_type == "pull_move") {
+  action = std::make_unique<PullMoveAction>(shared_from_this(), getEndEffectorPose());
+} else if (goal->action_type == "place_move") {
+  action = std::make_unique<PlaceMoveAction>(shared_from_this(), getEndEffectorPose());
+} else if (goal->action_type == "free_move") {
+  action = std::make_unique<FreeMoveAction>();
+}
+```
+**Collision object setup:**
+```cpp
+planning_scene_interface.applyCollisionObject(
+    generateCollisionObject(2.4, 0.04, 1.0, 0.85, -0.30, 0.5, frame_id, "backWall"));
+planning_scene_interface.applyCollisionObject(
+    generateCollisionObject(0.04, 1.2, 1.0, -0.30, 0.25, 0.5, frame_id, "sideWall"));
+
+```
 ---
 
 
