@@ -15,9 +15,15 @@
 ---
 
 # Background and Customers
-- **Problem Context**: Briefly describe the background of the project and the motivation.  
-- **Target Customers/Users**: Who is the intended end-user or customer?  
-- **System Purpose**: What problem does the robot solve?  
+
+## Background and Problem Context  
+Over 40% of children spend significant hours alone at home each week, often without meaningful interaction. This isolation leads many to rely heavily on screens, which can reduce focus, hinder social development, and negatively affect emotional well‑being. Parents are increasingly concerned about finding safe and engaging alternatives that can keep their children stimulated while also supporting healthy growth.  
+
+## Target Customers/Users  
+The primary users are children who need interactive companionship during periods of solitude. Parents are the key customers, as they seek reliable solutions that reduce screen dependency and provide peace of mind. Educational institutions and after‑school programs may also benefit from such systems, using them to enhance learning and social engagement in structured environments.  
+
+## System Purpose  
+The robot is designed to provide interactive companionship and stimulating activities for children, offering a safe and engaging alternative to passive screen time. By fostering attention, creativity, and social interaction, it helps improve emotional well‑being and developmental outcomes. At the same time, it reassures parents that their children are meaningfully engaged even when alone at home.  
 
 ---
 
@@ -113,11 +119,11 @@ Run the UI node with ROS 2:
 
 # End-Effector Configuration
 
+## Features
+
 **Lightweight 3D-Printed Frame**  
 The JengaBot end-effector is built from a **lightweight 3D-printed structure**.  
 It includes **two grippers** and **two servos**.  
-
-![End Effector CAD Render](docs/end_effector_cad.png)
 
 **Gripper Motion**  
 Horizontal movement of the grippers is achieved through a **gear–rack mechanism**.  
@@ -127,23 +133,18 @@ This motion is **directly driven by servo rotation**.
 One gripper tip is equipped with a **flexible force sensor**.  
 This sensor determines whether a block can be pushed **without destabilizing the tower**.  
 
-![Force Sensor Placement](docs/force_sensor.png)
-
-**Mechanical Design Iterations**  
-The mechanical structure was designed in **SolidWorks**.  
-STL files were exported for **3D printing**.  
-Due to geometric constraints and issues found during development, the design underwent **multiple iterations**.  
-
 **Servo Control**  
 Servos are controlled by an **Arduino**.  
 A **servo expansion board** is used to optimize wiring and save I/O pins.  
 
-![Servo Wiring Diagram](docs/servo_wiring.png)
-
 **Mounting Method**  
 The end-effector is mounted using an **existing slot fixture**, ensuring stable integration with the robot system.  
 
+## Iterations
 
+Due to geometric constraints and issues found during development, the design underwent **multiple iterations**. 
+Version 1.0: Original design (See figure below) 
+/readme_asset/image01
 
 ---
 
