@@ -482,7 +482,7 @@ class objectDetect(Node):
             right_linkage = linkage(right_Z_vals, method='ward')
 
             # Instead of number of clusters, use a distance threshold
-            distance_threshold = 20  # meters; tweak depending on your tower
+            distance_threshold = 30  # pixels; tweak depending on your tower
             left_clusters = fcluster(left_linkage, distance_threshold, criterion='distance')
             right_clusters = fcluster(right_linkage, distance_threshold, criterion='distance')
 
@@ -683,7 +683,7 @@ class objectDetect(Node):
             by = base_point_in_base.pose.position.y
 
             # === FIXED Z VALUE ===
-            bz = 0.008     # <-- choose your fixed Z height in base_link frame
+            bz = 0.020     # <-- choose your fixed Z height in base_link frame
 
             # === FORCE ORIENTATION TO BE PARALLEL TO base_link Z AXIS ===
             # i.e., zero roll, zero pitch, yaw only
