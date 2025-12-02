@@ -32,9 +32,10 @@ private:
 class LinearMoveAction : public ConstrainedMoveAction
 {
 public:
-  explicit LinearMoveAction(rclcpp::Node::SharedPtr node, double speed_scale = 0.6)
+  explicit LinearMoveAction(rclcpp::Node::SharedPtr node, double speed_scale = 0.6, bool safety = false)
   : node_(node),
-    speed_scale_(speed_scale)
+    speed_scale_(speed_scale),
+    safety_(safety)
   {
   }
 
@@ -99,7 +100,7 @@ public:
 
     move_group.execute(plan);
 
-    if (safety_stop_triggered.load())
+    if (safety_stop_triggered.load() && safety_)
     {
       feedback->feedback = "LinearMoveAction interrupted due to safety stop.";
       goal_handle->publish_feedback(feedback);
@@ -119,4 +120,5 @@ public:
 private:
   rclcpp::Node::SharedPtr node_;
   double speed_scale_;
+  bool safety_; 
 };

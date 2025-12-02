@@ -600,7 +600,7 @@ class objectDetect(Node):
                     # Compute X, Y, Z based on side and horizontal slot
                     x_pos = 0.0
                     y_pos = [-block_width, 0.0, block_width][i]  # left/middle/right positions
-                    z_pos = (level_index - 1) * block_height + block_height / 2  # center of block
+                    z_pos = (level_index) * block_height + block_height / 2  # center of block
 
                     if side == "left":
                         pose.position = Point(x=x_pos, y=y_pos, z=z_pos)

@@ -18,7 +18,7 @@ class Brain(Node):
         super().__init__('brain')
 
         # === Parameters ===
-        self.declare_parameter('threshold_g', 80.0)
+        self.declare_parameter('threshold_g', 50.0)
         self.threshold_g = float(self.get_parameter('threshold_g').value)
 
         # Cooldown duration after trigger (seconds)
