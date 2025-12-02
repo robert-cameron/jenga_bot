@@ -1,23 +1,28 @@
-# JengaBot
-
 <div align="center">
-  <img src="image/jengabot.png" alt="jengabot" width="400"/>
+  <h1 style="font-size:48px; margin:0.2em 0;">JengaBot</h1>
+  <p style="font-size:16px; margin:0 0 0.8em 0; color:#555;">Interactive Jenga-playing robot</p>
+  <img src="image/jengabot.jpg" alt="jengabot" width="400"/>
 </div>
 
+<p>&nbsp;</p>
 ## Table of Contents
 - [Background and Customers](#background-and-customers)
+  - [Background and Problem Context](#background-and-problem-context)
+  - [Target Customers/Users](#target-customersusers)
+  - [System Purpose](#system-purpose)
 - [System Structure (Node Graph)](#system-structure-node-graph)
-- [Technical Components: Computer Vision](#technical-components-computer-vision)
+  - [Core Functionality](#core-functionality)
+  - [Package Breakdown](#package-breakdown)
+- [Technical Components: Computer vision](#technical-components-computer-vision)
 - [Technical Components: Manipulation](#technical-components-manipulation)
-- [Technical Components: Brain Node](#technical-components-brain-node)
+- [Technical Components: Brain node](#technical-components-brain-node)
 - [Technical Components: UI Node](#technical-components-ui-node)
 - [Technical Components: System Visualisation](#technical-components-system-visualisation)
 - [Technical Components: Customized End-Effector](#technical-components-customized-end-effector)
-- [Installation and Setup](#installation-and-setup)
+- [Installation and setup](#installation-and-setup)
 - [Running the System](#running-the-system)
 - [Results and Discussion](#results-and-discussion)
 - [Contributors and Roles](#contributors-and-roles)
-- [File/Repo Structure](#filerepo-structure)
 - [References](#references)
 
 ---
@@ -25,6 +30,7 @@
 ---
 
 # Background and Customers
+<p>&nbsp;</p>
 
 ## Background and Problem Context  
 Over 40% of children spend significant hours alone at home each week, often without meaningful interaction. This isolation leads many to rely heavily on screens, which can reduce focus, hinder social development, and negatively affect emotional well‑being. Parents are increasingly concerned about finding safe and engaging alternatives that can keep their children stimulated while also supporting healthy growth.  
@@ -40,6 +46,7 @@ The robot is designed to provide interactive companionship and stimulating activ
 ---
 
 # System Structure (Node Graph)
+<p>&nbsp;</p>
 
 <div align="center">
   <img src="image/structure.png" alt="structure" width="1000"/>
@@ -91,6 +98,7 @@ It identifies safe blocks, executes push-pull-place actions, and interacts with 
 ---
 
 # Technical Components: Computer vision
+<p>&nbsp;</p>
 
 Our vision pipeline is designed to detect and interpret the state of blocks within a tower structure using a depth camera and ArUco markers. The system subscribes to both RGB and depth image topics, processes them with OpenCV, and integrates the results into ROS2 for downstream robotic control.
 
@@ -114,6 +122,7 @@ if success:
 
 
 # Technical Components: Manipulation
+<p>&nbsp;</p>
 
 The **Manipulation Node** is responsible for executing robot arm actions using ROS 2, MoveIt, and TF2.  
 It provides an **action server** (`manipulation_action`) that accepts goals specifying either a target pose or a TF frame.  
@@ -166,6 +175,7 @@ planning_scene_interface.applyCollisionObject(
 
 
 # Technical Components: Brain node
+<p>&nbsp;</p>
 
 ## Overview
 
@@ -220,6 +230,7 @@ If you need the node to reset automatically, check the node parameters for a hys
 
 
 # Technical Components: UI Node
+<p>&nbsp;</p>
 
 ## Overview
 
@@ -246,6 +257,7 @@ ui_node provides a minimal terminal-based interface for human control. It reads 
 
 
 # Technical Components: System Visualisation
+<p>&nbsp;</p>
 
 The robot features two simultaneous user interaction windows. 
 
@@ -262,6 +274,7 @@ The second window enables basic operations and consolidates input and output sta
 </div>
 
 # Technical Components: Customized End-Effector 
+<p>&nbsp;</p>
 
 ## Features
 
@@ -325,6 +338,7 @@ Here's the photo of actual end effector:
 </div>
 
 ---
+<p>&nbsp;</p>
 ## Installation and setup
 
 1. Prerequisites
@@ -411,6 +425,7 @@ source ~/jenga_ws/install/setup.bash
 ---
 
 # Running the System
+<p>&nbsp;</p>
 - **Launch Instructions**: Provide a single command to start the system.  
 - **Example Commands**: e.g. `ros2 launch project_name bringup.launch.py`.  
 - **Expected Behavior**: Describe what the user should see.  
@@ -419,6 +434,7 @@ source ~/jenga_ws/install/setup.bash
 ---
 
 # Results and Discussion
+<p>&nbsp;</p>
 - **Performance**: How the system meets design goals.  
 - **Quantitative Results**: Accuracy, repeatability, robustness.  
 - **Demonstration Media**: Photos, figures, or videos of operation.  
@@ -427,6 +443,7 @@ source ~/jenga_ws/install/setup.bash
 ---
 
 # Contributors and Roles
+<p>&nbsp;</p>
 - **Robert Cameron** — 
 - **Thomas Crundwell** —  
 - **Akhil Govan** —
@@ -435,6 +452,7 @@ source ~/jenga_ws/install/setup.bash
 ---
 
 # References
+<p>&nbsp;</p>
 
 # References
 - External libraries, tutorials, or prior codebases used.  
