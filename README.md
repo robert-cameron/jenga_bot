@@ -1,5 +1,9 @@
 # JengaBot
 
+<div align="center">
+  <img src="image/ComputerVision.png" alt="ComputerVision" width="400"/>
+</div>
+
 ## Table of Contents
 - [Background and Customers](#background-and-customers)
 - [System Structure (Node Graph)](#system-structure-node-graph)
@@ -36,16 +40,63 @@ The robot is designed to provide interactive companionship and stimulating activ
 ---
 
 # System Structure (Node Graph)
-- **ROS2 Node Graph**: Insert diagram (from `rqt_graph` or custom schematic).  
-- **Node Functions**: Short description of each node’s role.  
-- **Topics/Services/Actions**: List and explain key communication interfaces.  
-- **Closed-Loop Behavior**: Provide a behavior tree or state machine diagram.  
+
+<div align="center">
+  <img src="image/structure.png" alt="structure" width="1000"/>
+</div>
+
+## Core Functionality
+This ROS-based robot plays Jenga by combining **vision**, **decision-making**, and **force-sensitive manipulation**.  
+It identifies safe blocks, executes push-pull-place actions, and interacts with a human via a UI.
+
+---
+
+## Package Breakdown
+
+### interface_pkg
+- **Node**: /user_interface  
+- **Role**: UI for human-robot turn-taking  
+- **Action Client**: /command_action  
+- **Topics**: /command, /feedback, /result  
+
+### camera_pkg
+- **Node**: /camera  
+- **Role**: Captures RGB and point cloud data  
+- **Topics**: /rgb, /point_cloud  
+
+### vision_pkg
+- **Node**: /vision  
+- **Role**: Reconstructs tower, classifies blocks  
+- **Topics**: /game_state, /tower_tf  
+
+### game_pkg
+- **Node**: /game_manager  
+- **Role**: Decision engine, selects safest block  
+- **Action Server**: /command_action  
+- **Action Client**: /manipulation_action  
+
+### manipulation_pkg
+- **Node**: /manipulation  
+- **Role**: Executes push/pull/place  
+- **Action Server**: /manipulation_action  
+- **Topics**: /action_type, /block_pose, /feedback, /result  
+
+### end_effector_pkg
+- **Node**: /end_effector  
+- **Role**: Monitors force, stops if >80g  
+- **Topics**: /force_sensor  
+- **Service**: /set_servo_pos  
+
 
 ---
 
 # Technical Components: Computer vision
 
 Our vision pipeline is designed to detect and interpret the state of blocks within a tower structure using a depth camera and ArUco markers. The system subscribes to both RGB and depth image topics, processes them with OpenCV, and integrates the results into ROS2 for downstream robotic control.
+
+<div align="center">
+  <img src="image/ComputerVision.png" alt="ComputerVision" width="600"/>
+</div>
 
 The pipeline begins with **image acquisition**, where RGB and aligned depth frames are captured. Using the `cv_bridge`, these frames are converted into OpenCV images for further processing. ArUco markers are detected to establish reference frames and orientations. Once markers are identified, the system computes transformations and broadcasts them via TF, ensuring that the robot has a consistent world model.
 
@@ -210,8 +261,6 @@ The second window enables basic operations and consolidates input and output sta
   <img src="image/window2.png" alt="window2" width="300"/>
 </div>
 
-
-
 # Technical Components: Customized End-Effector 
 
 ## Features
@@ -269,7 +318,11 @@ Adjusted the orientation of the mount to better align with the kinematics code, 
   <img src="image/endeffdrawing.png" alt="Engineering Drawing" width="300"/>
 </div>
 
+Here's the photo of actual end effector: 
 
+<div align="center">
+  <img src="image/endeff3.png" alt="endeff3" width="300"/>
+</div>
 
 ---
 ## Installation and setup
