@@ -10,7 +10,7 @@ from std_msgs.msg import Float32, Bool, String
 from tower_interfaces.msg import Tower
 from manipulation.action import Manipulation
 
-WAITING_POS = 'block92b' 
+WAITING_POS = 'block72b' 
 
 
 class Brain(Node):
@@ -78,16 +78,28 @@ class Brain(Node):
         )
         self._player_start_event = threading.Event()
 
+        # Robot turn state → UI
+        self.robot_turn_pub = self.create_publisher(
+            Bool,
+            '/ui/robot_turn',
+            10
+        )
+        self._set_robot_turn(False)  # start in "player turn" state
+
         # startup action client
         self.manipulation_client = ActionClient(
             self,
             Manipulation,
             '/manipulation_action'
         )
+
         # start the action chain once the executor is spinning.
         self.sequence_timer = self.create_timer(5, self._start_sequence)
-        self.create_timer(0.1, self._try_close_prongs)
+
+        # close prongs once subscriber exists
         self._prongs_closed = False
+        self.create_timer(0.1, self._try_close_prongs)
+
         self.sequence_thread = None
 
         self.get_logger().info(
@@ -97,6 +109,11 @@ class Brain(Node):
     # ------------------------------------------------------------------
     # Sequence and actions
     # ------------------------------------------------------------------
+    def _set_robot_turn(self, is_robot: bool):
+        """Notify the UI whose turn it is."""
+        self.robot_turn_pub.publish(Bool(data=is_robot))
+        self.get_logger().info(f"UI: robot_turn = {is_robot}")
+
     def _start_sequence(self):
         """Kick off the move sequence once after startup."""
         self.sequence_timer.cancel()
@@ -107,16 +124,22 @@ class Brain(Node):
         self.sequence_thread.start()
 
     def _run_sequence(self):
-
         self.get_logger().info('Waiting for /manipulation_action server...')
         if not self.manipulation_client.wait_for_server(timeout_sec=10.0):
             self.get_logger().error('Manipulation action server not available; aborting sequence.')
+            # Make sure UI is not stuck thinking it's robot's turn
+            self._set_robot_turn(False)
             return
 
         while rclpy.ok():
+            # ----- PLAYER TURN -----
+            self._set_robot_turn(False)
             self.get_logger().info('Waiting for player start signal on /ui/player_done...')
             self._player_start_event.wait()
             self._player_start_event.clear()
+
+            # ----- ROBOT TURN -----
+            self._set_robot_turn(True)
 
             successfully_pushed = False
 
@@ -137,6 +160,8 @@ class Brain(Node):
                 for action_type, tf in moves:
                     if not tf:
                         self.get_logger().error(f'TF frame missing for {action_type}; aborting sequence.')
+                        # Robot done (even though with error) → don't lock UI
+                        self._set_robot_turn(False)
                         return
 
                     # If this is the push, remember which block we are trying
@@ -156,12 +181,18 @@ class Brain(Node):
                         self.get_logger().error(f'{action_type} failed; stopping sequence.')
                         if action_type != 'push_move':
                             self.get_logger().error('cannot recover from here: killing loop.')
-                            return # pull or place has failed. cannot recover from here 
+                            # Robot is done (failed) → allow UI again
+                            self._set_robot_turn(False)
+                            return  # pull or place failed
                         else:
+                            # push failed → try another block, but still robot turn
                             successfully_pushed = False
                             break
 
                 self.get_logger().info('Push, pull, place cycle complete. Starting next cycle...')
+
+            # Finished full push/pull/place/approach → back to player
+            self._set_robot_turn(False)
 
     def _send_goal_and_wait(self, action_type: str, tf: str) -> bool:
         """Send a Manipulation goal and wait for the result."""
@@ -257,7 +288,6 @@ class Brain(Node):
             self._latest_tower = msg
 
     def on_player_done(self, msg: Bool):
-        # self.get_logger().info(f"recieved user signal {msg.data}")
         if msg.data:
             self.get_logger().info('Received player start signal; resuming robot loop.')
             self._player_start_event.set()
@@ -424,7 +454,7 @@ class Brain(Node):
         )
 
         return (push_tf, pull_tf, place_tf)
-    
+
     def _try_close_prongs(self):
         # If already done, stop checking
         if self._prongs_closed:
@@ -434,7 +464,7 @@ class Brain(Node):
         if count == 0:
             # No subscriber yet → wait
             self.get_logger().info("Waiting for /prongs/mode subscriber...")
-        #    return
+            # return
 
         # Subscriber exists → publish now
         msg = String()
@@ -443,7 +473,7 @@ class Brain(Node):
         self._prongs_closed = True
         self.get_logger().info("Prongs closed after subscriber detected.")
 
-        # Kill the timer by returning without rescheduling (ROS2 will stop it)
+
 def main():
     rclpy.init()
     node = Brain()

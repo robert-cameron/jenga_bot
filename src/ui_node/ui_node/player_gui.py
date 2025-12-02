@@ -10,11 +10,14 @@ from std_msgs.msg import Bool, String, Float32
 
 class PlayerGUI(Node):
     """
-    Simple window-based UI for the Jenga game.
+    JengaBot player console.
 
-    - "Start / Next Move" button publishes Bool(True) on /ui/player_done.
+    - "Start / Next Move" publishes Bool(True) on /ui/player_done.
     - Prongs buttons send mode commands on /prongs/mode: 'o', 'cp', 'cf'.
-    - Subscribes to /prongs/force_g and exposes latest value via self.current_force_g.
+    - Subscribes to /prongs/force_g to show current force.
+    - Subscribes to /ui/robot_turn (Bool):
+        True  = robot moving → Start button disabled.
+        False = human turn  → Start button enabled.
     """
 
     def __init__(self):
@@ -33,6 +36,17 @@ class PlayerGUI(Node):
             10
         )
 
+        # ----- Robot turn / state -----
+        # True  -> robot moving / planning
+        # False -> human's turn
+        self.robot_turn = False
+        self.robot_turn_sub = self.create_subscription(
+            Bool,
+            '/ui/robot_turn',
+            self.robot_turn_callback,
+            10
+        )
+
         self.get_logger().info("PlayerGUI node initialised.")
 
     # ------------- ROS callbacks -------------
@@ -40,6 +54,10 @@ class PlayerGUI(Node):
     def force_callback(self, msg: Float32):
         """Store the latest force in grams."""
         self.current_force_g = msg.data
+
+    def robot_turn_callback(self, msg: Bool):
+        """Update whether it is the robot's turn (robot moving) or player's."""
+        self.robot_turn = msg.data
 
     # ------------- ROS publish helpers -------------
 
@@ -74,65 +92,100 @@ def main():
 
     root = tk.Tk()
     root.title("JengaBot – Player Console")
-    root.geometry("420x320")
+    root.geometry("460x360")
 
-    main_frame = ttk.Frame(root, padding=20)
+    # --- Basic theming ---
+    bg_main = "#1f2430"
+    bg_panel = "#262b38"
+    fg_text = "#f5f7fa"
+    fg_subtle = "#a0a4b8"
+    accent = "#5c7cfa"
+
+    root.configure(bg=bg_main)
+
+    style = ttk.Style()
+    style.theme_use("clam")
+
+    style.configure("Main.TFrame", background=bg_main)
+    style.configure("Panel.TLabelframe", background=bg_panel, foreground=fg_text)
+    style.configure("Panel.TLabelframe.Label", background=bg_panel, foreground=fg_text)
+    style.configure("Title.TLabel", background=bg_main, foreground=fg_text,
+                    font=("Helvetica", 18, "bold"))
+    style.configure("Body.TLabel", background=bg_main, foreground=fg_subtle)
+    style.configure("Status.TLabel", background=bg_main, foreground=fg_subtle)
+    style.configure("TButton", padding=6)
+    style.map("TButton",
+              foreground=[("disabled", "#777777")],
+              background=[("active", accent)])
+
+    main_frame = ttk.Frame(root, style="Main.TFrame", padding=20)
     main_frame.pack(fill="both", expand=True)
 
     title_label = ttk.Label(
         main_frame,
         text="JengaBot – Player Console",
-        font=("Helvetica", 16, "bold")
+        style="Title.TLabel"
     )
-    title_label.pack(pady=(0, 10))
+    title_label.pack(pady=(0, 10), anchor="w")
 
     info_label = ttk.Label(
         main_frame,
         text=(
-            "1. Click “Start / Next Move” when you want the robot to move.\n"
-            "2. After the robot finishes and you've done your turn,\n"
-            "   click it again for the next move."
+            "1. When it’s your turn, click “Start / Next Move”.\n"
+            "2. While the robot is moving, the button is disabled.\n"
+            "3. Once the robot finishes, it becomes your turn again."
         ),
+        style="Body.TLabel",
         justify="left",
-        wraplength=380
+        wraplength=420
     )
-    info_label.pack(pady=(0, 10))
+    info_label.pack(pady=(0, 10), anchor="w")
 
     status_var = tk.StringVar(
-        value="Click “Start / Next Move” when you’re ready."
+        value="Your turn. Click “Start / Next Move” when you’re ready."
     )
 
     status_label = ttk.Label(
         main_frame,
         textvariable=status_var,
-        foreground="grey"
+        style="Status.TLabel"
     )
-    status_label.pack(pady=(0, 10))
+    status_label.pack(pady=(0, 10), anchor="w")
 
     # --- Player start/next button ---
 
-    def on_start_next():
-        node.send_player_done()
-        status_var.set(
-            "Signal sent. Wait for the robot to finish,\n"
-            "then click again for the next move."
-        )
+    button_frame = ttk.Frame(main_frame, style="Main.TFrame")
+    button_frame.pack(pady=(0, 15), fill="x")
 
     start_button = ttk.Button(
-        main_frame,
-        text="Start / Next Move",
-        command=on_start_next
+        button_frame,
+        text="Start / Next Move"
     )
-    start_button.pack(pady=(0, 15), ipadx=10, ipady=5)
+    start_button.pack(ipadx=12, ipady=4)
+
+    def on_start_next():
+        # Tell the brain the player is done and robot can move
+        node.send_player_done()
+        # Optimistically mark as robot turn so UI locks immediately
+        node.robot_turn = True
+        status_var.set("Robot is moving… please wait.")
+        start_button.state(["disabled"])
+
+    start_button.configure(command=on_start_next)
 
     # --- Prongs control buttons (use /prongs/mode: 'o', 'cp', 'cf') ---
 
-    prongs_frame = ttk.LabelFrame(main_frame, text="Prongs Control")
+    prongs_frame = ttk.Labelframe(main_frame, text="Prongs Control",
+                                  style="Panel.TLabelframe")
     prongs_frame.pack(pady=(0, 10), fill="x")
+
+    # Use a normal tk.Frame inside to override bg
+    inner_prongs = tk.Frame(prongs_frame, bg=bg_panel)
+    inner_prongs.pack(fill="x", padx=5, pady=5)
 
     def make_mode_button(text: str, mode: str, col: int):
         btn = ttk.Button(
-            prongs_frame,
+            inner_prongs,
             text=text,
             command=lambda: node.send_prongs_mode(mode)
         )
@@ -143,47 +196,69 @@ def main():
     #  ros2 topic pub -1 /prongs/mode std_msgs/String "data: 'o'"
     #  ros2 topic pub -1 /prongs/mode std_msgs/String "data: 'cp'"
     #  ros2 topic pub -1 /prongs/mode std_msgs/String "data: 'cf'"
-    make_mode_button("Open (o)",        "o",  0)
-    make_mode_button("Grip Block (cp)", "cp", 1)
-    make_mode_button("Close Full (cf)","cf", 2)
+    make_mode_button("Open (o)",         "o",  0)
+    make_mode_button("Grip Block (cp)",  "cp", 1)
+    make_mode_button("Close Full (cf)",  "cf", 2)
 
     # --- Force display ---
 
-    force_frame = ttk.LabelFrame(main_frame, text="Force (g)")
+    force_frame = ttk.Labelframe(main_frame, text="Force (g)",
+                                 style="Panel.TLabelframe")
     force_frame.pack(pady=(10, 0), fill="x")
 
-    ttk.Label(force_frame, text="Current force:").grid(
-        row=0, column=0, padx=5, pady=5, sticky="w"
+    inner_force = tk.Frame(force_frame, bg=bg_panel)
+    inner_force.pack(fill="x", padx=5, pady=5)
+
+    label_force = tk.Label(
+        inner_force,
+        text="Current force:",
+        bg=bg_panel,
+        fg=fg_text
     )
+    label_force.grid(row=0, column=0, padx=5, pady=5, sticky="w")
 
     force_value_var = tk.StringVar(value="0.0 g")
 
-    # Use tk.Label (not ttk) so we can change foreground colour easily
     force_value_label = tk.Label(
-        force_frame,
+        inner_force,
         textvariable=force_value_var,
-        font=("Helvetica", 14, "bold"),
+        font=("Helvetica", 16, "bold"),
+        bg=bg_panel,
         fg="green"
     )
     force_value_label.grid(row=0, column=1, padx=5, pady=5, sticky="w")
 
     THRESHOLD_G = 80.0
 
-    def refresh_force_label():
-        # Read from node (updated in ROS callback thread)
+    def refresh_ui():
+        # ----- Force -----
         value = node.current_force_g
         force_value_var.set(f"{value:.1f} g")
-
         if value > THRESHOLD_G:
             force_value_label.config(fg="red")
         else:
             force_value_label.config(fg="green")
 
+        # ----- Turn / Start button state -----
+        if node.robot_turn:
+            # Robot is moving or planning
+            start_button.state(["disabled"])
+            status_var.set("Robot is moving… please wait.")
+        else:
+            # Human's turn
+            start_button.state(["!disabled"])
+            # Only overwrite if previous message was "robot moving" or initial
+            if "Robot is moving" in status_var.get() or \
+               "Your turn" in status_var.get():
+                status_var.set(
+                    "Your turn. Click “Next Move” when you’re ready."
+                )
+
         # Schedule next update
-        root.after(100, refresh_force_label)  # every 100 ms
+        root.after(100, refresh_ui)  # every 100 ms
 
     # Kick off periodic UI update
-    refresh_force_label()
+    refresh_ui()
 
     # Handle closing the window
     def on_close():
