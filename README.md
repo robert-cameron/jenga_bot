@@ -272,12 +272,93 @@ Adjusted the orientation of the mount to better align with the kinematics code, 
 
 
 ---
+## Installation and setup
 
-# Installation and Setup
-- **Dependencies**: List required packages, libraries, and versions.  
-- **Workspace Setup**: Step-by-step instructions to build the ROS2 workspace.  
-- **Hardware Setup**: UR5e connection, camera, Teensy, etc.  
-- **Environment Variables/Calibration**: Any required configuration files or calibration steps.  
+1. Prerequisites
+- OS: Ubuntu 22.04  
+- ROS 2: Humble 
+- Build tools: `colcon`, `python3-colcon-common-extensions`, `git`  
+- UR stack: `ur_robot_driver`, `ros2_control`, MoveIt 2  
+- Tools: `rviz2`, `tf2_ros`  
+
+Follow the official ROS 2 Humble install guide, then install the UR driver and MoveIt packages on the same machine that will run the JengaBot stack.
+
+2. Workspace setup
+- Create workspace and clone the repo:
+```bash
+mkdir -p ~/jenga_ws/src
+cd ~/jenga_ws/src
+git clone <https://github.com/robert-cameron/jenga_bot.git> jenga_bot
+cd ~/jenga_ws
+```
+- Source ROS 2 and build:
+```bash
+source /opt/ros/humble/setup.bash
+cd ~/jenga_ws
+colcon build
+source ~/jenga_ws/install/setup.bash
+```
+- Key packages available after build: `brain_node`, `manipulation`, `object_detect`, `ur_description_custom`, `ur_moveit_config_custom`, `end_eff_bridge`, `ui_node`/`gui_node`.
+
+3. Hardware setup
+3.1 UR5e and network
+- Put the UR5e and the ROS PC on the same network (direct Ethernet is common). Example IPs:
+  - Robot: `192.168.0.100`
+  - PC: `192.168.0.10`
+- Install the UR external control URCap and configure the robot’s external control program to point to the PC IP/port per `ur_robot_driver` docs.
+- Edit `setupRealur5e.sh` to set the robot IP:
+```bash
+robot_ip:=192.168.0.100
+```
+- To start the real hardware stack (from workspace root):
+```bash
+cd ~/jenga_ws
+./setupRealur5e.sh
+```
+- For simulation (using rviz) use `setupFakeur5e.sh` with `use_fake_hardware:=true`.
+
+3.2 Camera and vision
+- Mount an RGB-D camera with a clear view of the tower and fiducials (ArUco Markers).
+- The tower scripts (`real_tower.sh` / `fake_tower.sh`) define:
+```bash
+WORLD_FRAME="world"
+TABLE_FRAME="table"
+TOWER_BASE_FRAME="tower_base"
+TOWER_X=0.6
+TOWER_Y=0.2
+TOWER_Z=0.03
+TOWER_YAW_DEG=45
+```
+- Edit these values so `tower_base` matches the physical tower centre (after hand–eye calibration). As long as `/vision/tower` publishes in the robot frame (or a fixed TF exists), the brain node will operate.
+
+3.3 End-effector (gripper + force sensor)
+- Firmware (PlatformIO, Arduino Nano):
+- Download the code from the following folder:
+```bash
+cd Embedded/"MTRN4231 EndEff"
+```
+- Firmware functions: drive servos to preset positions and stream force readings (grams) over serial.
+- Wiring: mount the Arduino, connect servos to PWM pins defined in `src/main.cpp`, wire force sensor (amplifier) as per schematic, and power from a regulated supply (shared ground with robot/PC).
+- Serial bridge: connect the microcontroller to the ROS PC via USB and confirm device path:
+```bash
+ls /dev/ttyUSB* /dev/ttyACM*
+```
+- Default bridge command (adjust port if needed):
+```bash
+ros2 run end_eff_bridge bridge --ros-args -p port:=/dev/ttyUSB0 -p baud:=115200
+```
+- The bridge publishes `/prongs/force_g` (`std_msgs/Float32`) and listens on `/prongs/mode` (`std_msgs/String`) for `"o"`, `"cp"`, `"cf"`.
+
+4. Environment, configuration, and calibration
+- Always source ROS and the workspace before running scripts:
+```bash
+source /opt/ros/humble/setup.bash
+source ~/jenga_ws/install/setup.bash
+```
+
+- Tower TF and geometry (frames, block sizes, layers) are configured in `real_tower.sh` / `fake_tower.sh`. Adjust to match your physical setup.
+- Force threshold parameter on the brain node defaults to 50.0 g. 
+- Hand–eye calibration: ensure TF connectivity between UR5e base, table/world, and tower frames. No calibration code is required in this repo if TFs are published correctly.
 
 ---
 
