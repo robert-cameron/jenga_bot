@@ -288,7 +288,7 @@ Follow the official ROS 2 Humble install guide, then install the UR driver and M
 ```bash
 mkdir -p ~/jenga_ws/src
 cd ~/jenga_ws/src
-git clone <https://github.com/robert-cameron/jenga_bot.git> jenga_bot
+git clone https://github.com/robert-cameron/jenga_bot.git jenga_bot
 cd ~/jenga_ws
 ```
 - Source ROS 2 and build:
@@ -298,27 +298,15 @@ cd ~/jenga_ws
 colcon build
 source ~/jenga_ws/install/setup.bash
 ```
-- Key packages available after build: `brain_node`, `manipulation`, `object_detect`, `ur_description_custom`, `ur_moveit_config_custom`, `end_eff_bridge`, `ui_node`/`gui_node`.
+- Key packages available after build: `brain_node`, `manipulation`, `object_detect`, `ur_description_custom`, `ur_moveit_config_custom`, `end_eff_bridge`, `ui_node`.
 
 3. Hardware setup
 3.1 UR5e and network
-- Put the UR5e and the ROS PC on the same network (direct Ethernet is common). Example IPs:
-  - Robot: `192.168.0.100`
-  - PC: `192.168.0.10`
-- Install the UR external control URCap and configure the robot’s external control program to point to the PC IP/port per `ur_robot_driver` docs.
-- Edit `setupRealur5e.sh` to set the robot IP:
-```bash
-robot_ip:=192.168.0.100
-```
-- To start the real hardware stack (from workspace root):
-```bash
-cd ~/jenga_ws
-./setupRealur5e.sh
-```
-- For simulation (using rviz) use `setupFakeur5e.sh` with `use_fake_hardware:=true`.
+- Configure ROS2 Humble and the UR5e robot according to the documentation abd ensure both systems are on the same network.
+
 
 3.2 Camera and vision
-- Mount an RGB-D camera with a clear view of the tower and fiducials (ArUco Markers).
+- Mount an RGB-D camera with a clear view of the tower and the ArUco Markers.
 - The tower scripts (`real_tower.sh` / `fake_tower.sh`) define:
 ```bash
 WORLD_FRAME="world"
@@ -332,18 +320,24 @@ TOWER_YAW_DEG=45
 - Edit these values so `tower_base` matches the physical tower centre (after hand–eye calibration). As long as `/vision/tower` publishes in the robot frame (or a fixed TF exists), the brain node will operate.
 
 3.3 End-effector (gripper + force sensor)
+- Print the end-effector body (located in the SolidWorks files folder)
+- Attach the 2 DSS P05 Servos and the RP-S5-RT force sensor to the end-effector as shown above.
 - Firmware (PlatformIO, Arduino Nano):
 - Download the code from the following folder:
 ```bash
 cd Embedded/"MTRN4231 EndEff"
 ```
+Connect the Components according to the Wiring Diagram Below:
+<div align="center">
+  <img src="image/WiringDiagram.png" alt="WiringDiagram" width="300"/>
+</div>
 - Firmware functions: drive servos to preset positions and stream force readings (grams) over serial.
-- Wiring: mount the Arduino, connect servos to PWM pins defined in `src/main.cpp`, wire force sensor (amplifier) as per schematic, and power from a regulated supply (shared ground with robot/PC).
+- Wiring: mount the Arduino, connect servos to PWM pins defined in `src/main.cpp`, wire force sensor as per schematic, and power from a regulated supply (shared ground with robot/PC).
 - Serial bridge: connect the microcontroller to the ROS PC via USB and confirm device path:
 ```bash
 ls /dev/ttyUSB* /dev/ttyACM*
 ```
-- Default bridge command (adjust port if needed):
+- Default bridge command:
 ```bash
 ros2 run end_eff_bridge bridge --ros-args -p port:=/dev/ttyUSB0 -p baud:=115200
 ```
