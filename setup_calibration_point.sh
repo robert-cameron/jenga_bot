@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Config (match your original)
-TOWER_BASE_FRAME="tower_base_rotated"
+TOWER_BASE_FRAME="tower_base_inaccurate_z"
 BLOCK_L=0.127   # length along row axis (m)
 BLOCK_W=0.046   # perp offset between blocks (m)
 BLOCK_H=0.03    # block height (m)

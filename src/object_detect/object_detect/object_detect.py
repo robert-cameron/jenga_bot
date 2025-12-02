@@ -354,14 +354,19 @@ class objectDetect(Node):
 
             hsv = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
 
-            lower_green = np.array([0,178,110])
-            upper_green = np.array([8,255,198])
+            # lower_green = np.array([0,178,110])
+            # upper_green = np.array([8,255,198])
 
             # lower_green = np.array([90,208,129])
             # upper_green = np.array([107,255,201])
 
             # Threshold the image to get only green colors
-            mask = cv2.inRange(hsv, lower_green, upper_green)
+            # mask = cv2.inRange(hsv, lower_green, upper_green)
+
+            mask1 = cv2.inRange(hsv, (0, 116, 68), (8, 255, 179))
+            mask2 = cv2.inRange(hsv, (168, 74, 98), (180, 167, 169))
+
+            mask = mask1 + mask2
 
             # Define a kernel (structuring element)
             # kernel = np.ones((2,2), np.uint8) # A 5x5 square kernel
@@ -477,7 +482,7 @@ class objectDetect(Node):
             right_linkage = linkage(right_Z_vals, method='ward')
 
             # Instead of number of clusters, use a distance threshold
-            distance_threshold = 20  # meters; tweak depending on your tower
+            distance_threshold = 30  # pixels; tweak depending on your tower
             left_clusters = fcluster(left_linkage, distance_threshold, criterion='distance')
             right_clusters = fcluster(right_linkage, distance_threshold, criterion='distance')
 
@@ -678,7 +683,7 @@ class objectDetect(Node):
             by = base_point_in_base.pose.position.y
 
             # === FIXED Z VALUE ===
-            bz = 0.03     # <-- choose your fixed Z height in base_link frame
+            bz = 0.020     # <-- choose your fixed Z height in base_link frame
 
             # === FORCE ORIENTATION TO BE PARALLEL TO base_link Z AXIS ===
             # i.e., zero roll, zero pitch, yaw only
@@ -718,10 +723,10 @@ class objectDetect(Node):
 
             mode_tower = self.compute_mode_tower()
 
-            if mode_tower is not None and mode_tower[0]["side"] == "right":
-                blocks_yaw = yaw + np.pi / 2.0
-            else:
-                blocks_yaw = yaw + np.pi
+            # if mode_tower is not None and mode_tower[0]["side"] == "right":
+            #     blocks_yaw = yaw + np.pi / 2.0
+            # else:
+            blocks_yaw = yaw + np.pi
 
             rotated_qx = 0.0
             rotated_qy = 0.0

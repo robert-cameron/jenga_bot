@@ -3,8 +3,12 @@
 ## Table of Contents
 - [Background and Customers](#background-and-customers)
 - [System Structure (Node Graph)](#system-structure-node-graph)
-- [Node: Brain Node](#brain-node)
-- [End-Effector Configuration](#end-effector-configuration)
+- [Technical Components: Computer Vision](#technical-components-computer-vision)
+- [Technical Components: Manipulation](#technical-components-manipulation)
+- [Technical Components: Brain Node](#technical-components-brain-node)
+- [Technical Components: UI Node](#technical-components-ui-node)
+- [Technical Components: System Visualisation](#technical-components-system-visualisation)
+- [Technical Components: Customized End-Effector](#technical-components-customized-end-effector)
 - [Installation and Setup](#installation-and-setup)
 - [Running the System](#running-the-system)
 - [Results and Discussion](#results-and-discussion)
@@ -14,10 +18,20 @@
 
 ---
 
+---
+
 # Background and Customers
-- **Problem Context**: Briefly describe the background of the project and the motivation.  
-- **Target Customers/Users**: Who is the intended end-user or customer?  
-- **System Purpose**: What problem does the robot solve?  
+
+## Background and Problem Context  
+Over 40% of children spend significant hours alone at home each week, often without meaningful interaction. This isolation leads many to rely heavily on screens, which can reduce focus, hinder social development, and negatively affect emotional well‑being. Parents are increasingly concerned about finding safe and engaging alternatives that can keep their children stimulated while also supporting healthy growth.  
+
+## Target Customers/Users  
+The primary users are children who need interactive companionship during periods of solitude. Parents are the key customers, as they seek reliable solutions that reduce screen dependency and provide peace of mind. Educational institutions and after‑school programs may also benefit from such systems, using them to enhance learning and social engagement in structured environments.  
+
+## System Purpose  
+The robot is designed to provide interactive companionship and stimulating activities for children, offering a safe and engaging alternative to passive screen time. Fostering attention, creativity, and social interaction helps improve emotional well‑being and developmental outcomes. At the same time, it reassures parents that their children are meaningfully engaged even when alone at home.  
+
+[Insert the video here]
 
 ---
 
@@ -29,7 +43,78 @@
 
 ---
 
-# Node: Brain node
+# Technical Components: Computer vision
+
+Our vision pipeline is designed to detect and interpret the state of blocks within a tower structure using a depth camera and ArUco markers. The system subscribes to both RGB and depth image topics, processes them with OpenCV, and integrates the results into ROS2 for downstream robotic control.
+
+The pipeline begins with **image acquisition**, where RGB and aligned depth frames are captured. Using the `cv_bridge`, these frames are converted into OpenCV images for further processing. ArUco markers are detected to establish reference frames and orientations. Once markers are identified, the system computes transformations and broadcasts them via TF, ensuring that the robot has a consistent world model.
+
+A critical part of the pipeline is **block detection and clustering**. Green regions are segmented in HSV color space, contours are extracted, and positions are mapped into global coordinates. K-means and hierarchical clustering are applied to group blocks by horizontal and vertical positions, reconstructing the tower’s occupancy state. This information is published as `PoseArray`, `MarkerArray`, and custom `Tower` messages, enabling the robot to reason about which blocks can be pushed and how the tower is structured.
+
+Key code excerpt for marker pose estimation:
+```python
+success, rvec, tvec = cv2.solvePnP(obj_points, img_points, cameraMatrix, distCoeffs)
+if success:
+    rvecs.append(rvec)
+    tvecs.append(tvec)
+
+```
+---
+
+
+# Technical Components: Manipulation
+
+The **Manipulation Node** is responsible for executing robot arm actions using ROS 2, MoveIt, and TF2.  
+It provides an **action server** (`manipulation_action`) that accepts goals specifying either a target pose or a TF frame.  
+Based on the requested `action_type`, the node dispatches to specialized action classes such as **PushMoveAction**, **PullMoveAction**, **PlaceMoveAction**, **FreeMoveAction**, **LinearMoveAction**, and **ApproachMoveAction**.  
+
+The node integrates with MoveIt’s **MoveGroupInterface** to plan and execute trajectories.  
+It also sets up **collision objects** (walls, table, ceiling) in the planning scene to ensure safe motion planning.  
+Orientation and joint constraints can be applied to enforce specific end-effector orientations or joint limits.  
+The node continuously monitors goals, supports cancellation, and reports success or failure back to the client.
+
+### Key Features
+- **Action server** for manipulation goals (`manipulation_action`).
+- **Multiple action types**: push, pull, place, free, constrained, linear, approach.
+- **TF integration**: transforms target poses from TF frames into world coordinates.
+- **Collision-aware planning**: adds walls, table, and ceiling to the planning scene.
+- **Constraints**: orientation and joint constraints for safe and precise motion.
+
+### Code Excerpts
+
+**Action server creation:**
+```cpp
+action_server_ = rclcpp_action::create_server<Manipulation>(
+    this,
+    "manipulation_action",
+    std::bind(&ManipulationNode::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
+    std::bind(&ManipulationNode::handle_cancel, this, std::placeholders::_1),
+    std::bind(&ManipulationNode::handle_accepted, this, std::placeholders::_1));
+```
+**Dispatching actions:**
+```cpp
+if (goal->action_type == "push_move") {
+  action = std::make_unique<PushMoveAction>(shared_from_this(), getEndEffectorPose());
+} else if (goal->action_type == "pull_move") {
+  action = std::make_unique<PullMoveAction>(shared_from_this(), getEndEffectorPose());
+} else if (goal->action_type == "place_move") {
+  action = std::make_unique<PlaceMoveAction>(shared_from_this(), getEndEffectorPose());
+} else if (goal->action_type == "free_move") {
+  action = std::make_unique<FreeMoveAction>();
+}
+```
+**Collision object setup:**
+```cpp
+planning_scene_interface.applyCollisionObject(
+    generateCollisionObject(2.4, 0.04, 1.0, 0.85, -0.30, 0.5, frame_id, "backWall"));
+planning_scene_interface.applyCollisionObject(
+    generateCollisionObject(0.04, 1.2, 1.0, -0.30, 0.25, 0.5, frame_id, "sideWall"));
+
+```
+---
+
+
+# Technical Components: Brain node
 
 ## Overview
 
@@ -62,12 +147,10 @@ Assuming all hardware drivers are running and `/prongs/force_g` is being publish
 ```
 ros2 run brain brain
 ```
-
 Override the threshold via parameters:
 ```
 ros2 run brain brain --ros-args -p threshold_g:=100.0
 ```
-
 ## Topics
 
 ### Subscriptions
@@ -82,7 +165,10 @@ ros2 run brain brain --ros-args -p threshold_g:=100.0
 
 If you need the node to reset automatically, check the node parameters for a hysteresis or reset-band option (e.g., a fraction of the threshold) and set it appropriately.
 
-# Node: UI Node
+---
+
+
+# Technical Components: UI Node
 
 ## Overview
 
@@ -105,19 +191,34 @@ ui_node provides a minimal terminal-based interface for human control. It reads 
 | Publishes | /ui/player_done  | std_msgs/Bool    | Player "start" signal                |
 | Publishes | /prongs/cmd      | std_msgs/String  | Manual end-effector commands         |
 
-## Usage
-
-Run the UI node with ROS 2:
+---
 
 
+# Technical Components: System Visualisation
 
-# End-Effector Configuration
+The robot features two simultaneous user interaction windows. 
+
+The first window displays the state and posture of each block, indicating whether a block can be pushed and showing their relative positions. 
+
+<div align="center">
+  <img src="image/window1.png" alt="window1" width="300"/>
+</div>
+
+The second window enables basic operations and consolidates input and output states into a single interface, rather than presenting them as tedious, line‑by‑line terminal code. 
+
+<div align="center">
+  <img src="image/window2.png" alt="window2" width="300"/>
+</div>
+
+
+
+# Technical Components: Customized End-Effector 
+
+## Features
 
 **Lightweight 3D-Printed Frame**  
 The JengaBot end-effector is built from a **lightweight 3D-printed structure**.  
 It includes **two grippers** and **two servos**.  
-
-![End Effector CAD Render](docs/end_effector_cad.png)
 
 **Gripper Motion**  
 Horizontal movement of the grippers is achieved through a **gear–rack mechanism**.  
@@ -127,21 +228,46 @@ This motion is **directly driven by servo rotation**.
 One gripper tip is equipped with a **flexible force sensor**.  
 This sensor determines whether a block can be pushed **without destabilizing the tower**.  
 
-![Force Sensor Placement](docs/force_sensor.png)
-
-**Mechanical Design Iterations**  
-The mechanical structure was designed in **SolidWorks**.  
-STL files were exported for **3D printing**.  
-Due to geometric constraints and issues found during development, the design underwent **multiple iterations**.  
-
 **Servo Control**  
 Servos are controlled by an **Arduino**.  
 A **servo expansion board** is used to optimize wiring and save I/O pins.  
 
-![Servo Wiring Diagram](docs/servo_wiring.png)
-
 **Mounting Method**  
 The end-effector is mounted using an **existing slot fixture**, ensuring stable integration with the robot system.  
+
+## Iterations
+
+Due to geometric constraints and issues found during development, the design underwent **multiple iterations**. 
+
+**Version 0.0 (Prototype for MVP)** 
+
+This is a simple prototype, only functional for pushing the blocks and providing the end effector pose for research and tests. 
+
+[missing images]
+
+**Version 1.0:** 
+
+Original design (See figure below) 
+
+<div align="center">
+  <img src="image/endeff1.png" alt="End effector v1" width="300"/>
+</div>
+
+**Version 2.0:**  
+
+Enlarged the servo mounting holes and optimized the structure to improve the convenience and accuracy of FDM printing.
+
+**Version 3.0 (Final):**  
+
+Adjusted the orientation of the mount to better align with the kinematics code, positioning the gripper further forward to reduce obstruction during motion.
+
+<div align="center">
+  <img src="image/endeff2.png" alt="End effector v3" width="300"/>
+</div>
+
+<div align="center">
+  <img src="image/endeffdrawing.png" alt="Engineering Drawing" width="300"/>
+</div>
 
 
 
@@ -179,11 +305,7 @@ The end-effector is mounted using an **existing slot fixture**, ensuring stable 
 
 ---
 
-# File/Repo Structure
-
-
-
----
+# References
 
 # References
 - External libraries, tutorials, or prior codebases used.  

@@ -17,7 +17,7 @@ class CameraCalibration(Node):
         self.base = "base_link"
         self.ee = "end_eff_contact"
         self.camera = "camera_link"
-        self.tower = "block42b"
+        self.tower = "calibration_point_block42b"
 
         self.timer = self.create_timer(0.5, self.compute)
 
