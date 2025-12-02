@@ -1,7 +1,7 @@
 # JengaBot
 
 <div align="center">
-  <img src="image/ComputerVision.png" alt="ComputerVision" width="400"/>
+  <img src="image/jengabot.png" alt="jengabot" width="400"/>
 </div>
 
 ## Table of Contents
