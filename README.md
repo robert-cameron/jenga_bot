@@ -439,7 +439,3 @@ source ~/jenga_ws/install/setup.bash
 ---
 
 # 12. References
-
-# 13. References
-- External libraries, tutorials, or prior codebases used.  
-- Acknowledgements to demonstrators, peers, or collaborators.  
