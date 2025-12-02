@@ -5,6 +5,7 @@
 </div>
 
 <p>&nbsp;</p>
+
 ## Table of Contents
 - [Background and Customers](#background-and-customers)
   - [Background and Problem Context](#background-and-problem-context)
