@@ -28,7 +28,7 @@
 
 ---
 
-# Background and Customers
+# 1. Background and Customers
 
 ## Background and Problem Context  
 Over 40% of children spend significant hours alone at home each week, often without meaningful interaction. This isolation leads many to rely heavily on screens, which can reduce focus, hinder social development, and negatively affect emotional well‑being. Parents are increasingly concerned about finding safe and engaging alternatives that can keep their children stimulated while also supporting healthy growth.  
@@ -43,7 +43,7 @@ The robot is designed to provide interactive companionship and stimulating activ
 
 ---
 
-# System Structure (Node Graph)
+# 2. System Structure (Node Graph)
 
 <div align="center">
   <img src="image/structure.png" alt="structure" width="1000"/>
@@ -94,7 +94,7 @@ It identifies safe blocks, executes push-pull-place actions, and interacts with 
 
 ---
 
-# Technical Components: Computer vision
+# 3. Technical Components: Computer vision
 
 Our vision pipeline is designed to detect and interpret the state of blocks within a tower structure using a depth camera and ArUco markers. The system subscribes to both RGB and depth image topics, processes them with OpenCV, and integrates the results into ROS2 for downstream robotic control.
 
@@ -117,7 +117,7 @@ if success:
 ---
 
 
-# Technical Components: Manipulation
+# 4. Technical Components: Manipulation
 
 The **Manipulation Node** is responsible for executing robot arm actions using ROS 2, MoveIt, and TF2.  
 It provides an **action server** (`manipulation_action`) that accepts goals specifying either a target pose or a TF frame.  
@@ -169,7 +169,7 @@ planning_scene_interface.applyCollisionObject(
 ---
 
 
-# Technical Components: Brain node
+# 5. Technical Components: Brain node
 
 ## Overview
 
@@ -223,7 +223,7 @@ If you need the node to reset automatically, check the node parameters for a hys
 ---
 
 
-# Technical Components: UI Node
+# 6. Technical Components: UI Node
 
 ## Overview
 
@@ -249,7 +249,7 @@ ui_node provides a minimal terminal-based interface for human control. It reads 
 ---
 
 
-# Technical Components: System Visualisation
+# 7. Technical Components: System Visualisation
 
 The robot features two simultaneous user interaction windows. 
 
@@ -265,7 +265,7 @@ The second window enables basic operations and consolidates input and output sta
   <img src="image/window2.png" alt="window2" width="300"/>
 </div>
 
-# Technical Components: Customized End-Effector 
+# 8. Technical Components: Customized End-Effector 
 
 ## Features
 
@@ -414,7 +414,7 @@ source ~/jenga_ws/install/setup.bash
 
 ---
 
-# Running the System
+# 9. Running the System
 - **Launch Instructions**: Provide a single command to start the system.  
 - **Example Commands**: e.g. `ros2 launch project_name bringup.launch.py`.  
 - **Expected Behavior**: Describe what the user should see.  
@@ -422,7 +422,7 @@ source ~/jenga_ws/install/setup.bash
 
 ---
 
-# Results and Discussion
+# 10. Results and Discussion
 - **Performance**: How the system meets design goals.  
 - **Quantitative Results**: Accuracy, repeatability, robustness.  
 - **Demonstration Media**: Photos, figures, or videos of operation.  
@@ -430,7 +430,7 @@ source ~/jenga_ws/install/setup.bash
 
 ---
 
-# Contributors and Roles
+# 11. Contributors and Roles
 - **Robert Cameron** — 
 - **Thomas Crundwell** —  
 - **Akhil Govan** —
@@ -438,8 +438,8 @@ source ~/jenga_ws/install/setup.bash
 
 ---
 
-# References
+# 12. References
 
-# References
+# 13. References
 - External libraries, tutorials, or prior codebases used.  
 - Acknowledgements to demonstrators, peers, or collaborators.  
