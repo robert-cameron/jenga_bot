@@ -323,14 +323,15 @@ TOWER_YAW_DEG=45
 - Print the end-effector body (located in the SolidWorks files folder)
 - Attach the 2 DSS P05 Servos and the RP-S5-RT force sensor to the end-effector as shown above.
 - Firmware (PlatformIO, Arduino Nano):
-- Download the code from the following folder:
+- Download the code from the following file:
 ```bash
-cd Embedded/"MTRN4231 EndEff"
+cd Embedded/"MTRN4231 EndEff/src/main.cpp"
 ```
 Connect the Components according to the Wiring Diagram Below:
 <div align="center">
-  <img src="image/WiringDiagram.png" alt="WiringDiagram" width="300"/>
+  <img src="image/WiringDiagram.png" alt="WiringDiagram" width="600"/>
 </div>
+
 - Firmware functions: drive servos to preset positions and stream force readings (grams) over serial.
 - Wiring: mount the Arduino, connect servos to PWM pins defined in `src/main.cpp`, wire force sensor as per schematic, and power from a regulated supply (shared ground with robot/PC).
 - Serial bridge: connect the microcontroller to the ROS PC via USB and confirm device path:
