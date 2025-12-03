@@ -18,6 +18,7 @@ from tf2_geometry_msgs import do_transform_point
 from scipy.cluster.vq import kmeans2
 from scipy.cluster.hierarchy import linkage, fcluster
 from tower_interfaces.msg import Tower, TowerRow
+import matplotlib.pyplot as plt
 
 from collections import deque
 
@@ -108,6 +109,17 @@ class objectDetect(Node):
 
         self.tower_orientation = None
 
+        plt.ion()  # turn on interactive mode
+
+        self.fig, ax = plt.subplots(figsize=(6, 10))
+        self.scatter = ax.scatter([], [])
+        ax.set_xlabel("X position")
+        ax.set_ylabel("Layer")
+        ax.set_title("Detected Blocks by Layer and X Position")
+        ax.grid(True)
+        self.ax = ax
+        plt.tight_layout()
+        plt.show(block=False)
 
         print("Object Detection Node Initialized")
 
@@ -348,6 +360,7 @@ class objectDetect(Node):
             (rbx, rby) = self.global_2_pixel([right_bottom_edge_point[0], right_bottom_edge_point[1], right_bottom_edge_point[2]])
             (cbx, cby) = self.global_2_pixel([centre_bottom_edge_point[0], centre_bottom_edge_point[1], centre_bottom_edge_point[2]])
             (ctx, cty) = self.global_2_pixel([centre_top_edge_point[0], centre_top_edge_point[1], centre_top_edge_point[2]])
+            ctx = (ctx + cbx) // 2
             # (ctx, cty) = self.global_2_pixel([base_point[0], base_point[1], base_point[2]])
             # ctx = (lbx + rbx) // 2
             # cty = (lby + rby) // 2
@@ -524,10 +537,15 @@ class objectDetect(Node):
 
             tower_occupancy = {} 
 
+            plot_x = []
+            plot_y = []
+            plot_colors = []
+
             for i in range(len(points)):
                 (_px, _py), (ix, iy, iw, ih) = points[i]
                 side = "left" if points_side_z[i, 0] == 1 else "right"
                 cluster_id = height_cluster_labels[i]
+                # x position is points_x[i]
 
                 level = cluster_order_map[(side, cluster_id)]
                 pos = labels_to_x_groups[labels[i]][0] % 3
@@ -557,6 +575,45 @@ class objectDetect(Node):
                     color = (0, 0, 255)  # right_three - red
 
                 cv2.rectangle(self.cv_image, (ix, iy), (ix + iw, iy + ih), color, 2)
+
+                rgb = (color[2] / 255.0, color[1] / 255.0, color[0] / 255.0)
+
+                # add to lists for plotting
+                plot_x.append(points_x[i])
+                plot_y.append(level)
+                plot_colors.append(rgb)
+
+            for position in kmeans_positions:
+                plot_x.append(position)
+                plot_y.append(float(-1))  # plot below all levels
+                plot_colors.append((0.5, 0.5, 0.5))  # grey
+
+            for position in position_guesses:
+
+                plot_x.append(position)
+                plot_y.append(float(-2))  # plot below all levels
+                plot_colors.append((0.5, 0.5, 0.5))  # grey
+
+            # Convert to Nx2 numpy array
+            points_arr = np.column_stack((plot_x, plot_y))  # shape (N, 2)
+
+            # Update positions
+            self.scatter.set_offsets(points_arr)
+
+            # Update colours
+            self.scatter.set_color(plot_colors)
+
+            if len(plot_x) > 0:
+                self.ax.set_xlim(min(plot_x) - 10, max(plot_x) + 10)
+            if len(plot_y) > 0:
+                self.ax.set_ylim(max(plot_y) + 1, min(plot_y) - 1)
+
+            # 3. Force a real redraw
+            self.fig.canvas.draw_idle()
+            self.fig.canvas.flush_events()
+
+            # 4. Allow GUI backend time to update
+            plt.pause(0.001)
 
             self.tower_history.append(copy.deepcopy(tower_occupancy))
 
