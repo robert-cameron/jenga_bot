@@ -29,7 +29,9 @@ sleep 5
 
 gnome-terminal --tab -t "BrainServer" -e 'ros2 launch brain_node brain.launch.py'
 
-# gnome-terminal --tab -t "EndEffServer" -e 'ros2 run end_eff_bridge bridge --ros-args -p port:=/dev/ttyUSB0 -p baud:=115200'
+sleep 20
+
+gnome-terminal --tab -t "InitialMove" -e 'ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{action_type: 'linear_move', pose: {position: {x: 0.45, y: 0.45, z: 0.275}, orientation: {x: 0.0, y: 0.0, z: -0.382683, w: 0.923880}}}"'
 
 # useful terminal commands 
 
