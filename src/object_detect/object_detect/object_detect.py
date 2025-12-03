@@ -108,6 +108,8 @@ class objectDetect(Node):
         self.tower_history = deque(maxlen=self.k)    # tower smoothing
 
         self.tower_orientation = None
+        self.tower_offset = 0.0
+
 
         plt.ion()  # turn on interactive mode
 
@@ -323,11 +325,13 @@ class objectDetect(Node):
                     print("Using marker 1 and 2 for direction")
                     direction = right
                     tangent = forward
+                    self.tower_offset = 0.0
                 elif 4 in marker_positions:
                     x2, y2, z2, *_ = marker_positions[4]
                     print("Using marker 1 and 4 for direction")
                     direction = right
                     tangent = -forward
+                    self.tower_offset = -np.pi / 2.0
             elif 3 in marker_positions:
                 x1, y1, z1, *_ = marker_positions[3]
                 if 2 in marker_positions:
@@ -335,11 +339,13 @@ class objectDetect(Node):
                     print("Using marker 3 and 2 for direction")
                     direction = -right
                     tangent = forward
+                    self.tower_offset = np.pi / 2.0
                 elif 4 in marker_positions:
                     x2, y2, z2, *_ = marker_positions[4]
                     print("Using marker 3 and 4 for direction")
                     direction = -right
                     tangent = -forward
+                    self.tower_offset = np.pi
 
             distance = np.sqrt(((x2-x1)**2 + (y2-y1)**2 + (z2-z1)**2)/ 2.0)
 
@@ -754,7 +760,7 @@ class objectDetect(Node):
             ) 
             
 
-            final_yaw = yaw + np.pi / 2.0
+            final_yaw = yaw + self.tower_offset + 3.0 * np.pi / 2.0
             # Build yaw-only quaternion (roll=0, pitch=0)
             final_qx = 0.0
             final_qy = 0.0
@@ -780,10 +786,10 @@ class objectDetect(Node):
 
             mode_tower = self.compute_mode_tower()
 
-            # if mode_tower is not None and mode_tower[0]["side"] == "right":
-            #     blocks_yaw = yaw + np.pi / 2.0
-            # else:
-            blocks_yaw = yaw + np.pi
+            if mode_tower is not None and mode_tower[0]["side"] == "right":
+                blocks_yaw = yaw + self.tower_offset + 3.0 * np.pi / 2.0
+            else:
+                blocks_yaw = yaw + self.tower_offset + np.pi
 
             rotated_qx = 0.0
             rotated_qy = 0.0
