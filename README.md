@@ -133,10 +133,29 @@ string feedback
 
 The **Manipulation Node** is responsible for executing robot arm actions using ROS 2, MoveIt, and TF2.  
 It provides an **action server** (`manipulation_action`) that accepts goals specifying either a target pose or a TF frame.  
-Based on the requested `action_type`, the node dispatches to specialized action classes such as **PushMoveAction**, **PullMoveAction**, **PlaceMoveAction**, **FreeMoveAction**, **LinearMoveAction**, and **ApproachMoveAction**.  
+
+Based on the requested `action_type`, the node dispatches to specialised action classes, e.g. **PushMoveAction**, **PullMoveAction**.
 
 Some actions use other actions within them. For example, a **PullMoveAction** constists of an **ApproachMoveAction**, and a sequence of other **LinearMoveAction**s. 
 
+The node integrates with MoveIt’s **MoveGroupInterface** to plan and execute trajectories. It also sets up **collision objects** (walls, table, ceiling) in the planning scene to ensure safe motion planning. Orientation and joint constraints can be applied to enforce specific end-effector orientations or joint limits.  
+
+The node continuously monitors goals, supports cancellation, and reports success or failure back to the client.
+
+Movements stop instantly if force sensor sets /safety/stop to true.
+
+### Action types
+
+The following actions are defined as C++ classes:
+- `ApproachMove` - Approach any position/block on the tower
+- `PushMove` - Push a block out from the tower
+- `PullMove` - Grab a block and pull it from the tower
+- `PlaceMove` - Place a grabbed block on top of the tower
+- `LinearMove` - Move linearly (in Cartesian space) to a position/block
+- `ConstrainedMove` - Move in joint space with joint constraints
+- `FreeMove` - Move in joint space without constraints
+
+### Usage
 The `brain` node calls these actions based on its decicion making algorithm.
 
 Actions can also be initiated directly from the terminal by specifying either a pose or tf:
@@ -151,19 +170,6 @@ ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{a
 # execute a push move on the block at the tf named 'block 23f'
 ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{action_type: 'push_move', tf: 'block23f'}"
 ```
-
-The node integrates with MoveIt’s **MoveGroupInterface** to plan and execute trajectories.  
-It also sets up **collision objects** (walls, table, ceiling) in the planning scene to ensure safe motion planning.  
-Orientation and joint constraints can be applied to enforce specific end-effector orientations or joint limits.  
-The node continuously monitors goals, supports cancellation, and reports success or failure back to the client.
-
-### Key Features
-- **Action server** for manipulation goals (`manipulation_action`).
-- **Multiple action types**: push, pull, place, free, constrained, linear, approach.
-- **Safety stopping**: movements stop instantly if force sensor sets /safety/stop to true.
-- **TF integration**: transforms target poses from TF frames into world coordinates.
-- **Collision-aware planning**: adds walls, table, and ceiling to the planning scene.
-- **Constraints**: orientation and joint constraints for safe and precise motion.
 
 ---
 
@@ -288,7 +294,7 @@ This motion is **directly driven by servo rotation**.
 
 **Force Sensor Integration**  
 One gripper tip is equipped with a **flexible force sensor**.  
-This sensor determines whether a block can be pushed **without destabilizing the tower**.  
+This sensor determines whether a block can be pushed **without destabilising the tower**.  
 
 **Servo Control**  
 Servos are controlled by an **Arduino**.  
