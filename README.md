@@ -431,7 +431,7 @@ TOWER_YAW_DEG=45
 - Firmware (PlatformIO, Arduino Nano):
 - Download the code from the following file:
 ```bash
-cd Embedded/"MTRN4231 EndEff/src/main.cpp"
+cd embedded/"end_eff/src/main.cpp"
 ```
 Connect the Components according to the Wiring Diagram Below:
 <div align="center">
