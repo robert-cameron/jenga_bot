@@ -49,6 +49,11 @@ The primary users are children who need interactive companionship during periods
 ## System Purpose  
 The robot is designed to provide interactive companionship and stimulating activities for children, offering a safe and engaging alternative to passive screen time. Fostering attention, creativity, and social interaction helps improve emotional well‑being and developmental outcomes. At the same time, it reassures parents that their children are meaningfully engaged even when alone at home.  
 
+## Solution - JengaBot
+JengaBot is a robot that playes Jenga against a human player, this means the robot is able to find a block that is easy to remove, push it half way out, then pull and grasp it as it fully removes it from the tower before moving and placing the block on the top of the tower. The robot uses [computer vision](#32-technical-components-computer-vision) to find the location of the tower and the blocks that are in the tower. Further it uses a customer [force sensor](#36-technical-components-custom-end-effector) to determine whether a block can be pushed. The robot uses [manipulation](#33-technical-components-brain-node) to execute push-pull-place actions. Bringing this together is the [brain node](#33-technical-components-brain-node), which is able to coordinate a closed loop turn of the JengaBot.
+
+
+## Video
 [Insert the video here]
 
 ---
