@@ -8,33 +8,32 @@
 
 # Table of Contents
 
-1. [Project Overview](#1-project-overview)  
+[1. Project Overview](#1-project-overview)  
 
-2. [System Architecture](#2-system-architecture)  
+[2. System Architecture](#2-system-architecture)  
 
-3. [Technical Components](#31-technical-components-manipulation)  
-   3.1. [Manipulation](#31-technical-components-manipulation)  
-   3.2. [Computer Vision](#32-technical-components-computer-vision)  
-   3.3. [Brain Node](#33-technical-components-brain-node)  
-   3.4. [UI Node](#34-technical-components-ui-node)  
-   3.5 [Closed Loop Operation](#35-technical-components-closed-loop-operation)  
-   3.6 [Custom End-Effector](#36-technical-components-custom-end-effector)  
-   3.7 [System Visualisation](#37-technical-components-system-visualisation)
+[3. Technical Components](#31-technical-components-manipulation)  
+- [3.1. Manipulation](#31-technical-components-manipulation)  
+- [3.2. Computer Vision](#32-technical-components-computer-vision)  
+- [3.3. Brain Node](#33-technical-components-brain-node)  
+- [3.4. UI Node](#34-technical-components-ui-node)  
+- [3.5 Closed Loop Operation](#35-technical-components-closed-loop-operation)  
+- [3.6 Custom End-Effector](#36-technical-components-custom-end-effector)  
+- [3.7 System Visualisation](#37-technical-components-system-visualisation)
 
-4. [Installation and Setup](#4-installation-and-setup)  
+[4. Installation and Setup](#4-installation-and-setup)  
 
-5. [Running the System](#5-running-the-system)
+[5. Running the System](#5-running-the-system)
 
-6. [Results and Demonstration](#6-results-and-demonstration)
+[6. Results and Demonstration](#6-results-and-demonstration)
 
-7. [Discussion and Future Work](#7-discussion-and-future-work)
+[7. Discussion and Future Work](#7-discussion-and-future-work)
 
-8. [Contributors and Roles](#8-contributors-and-roles)
+[8. Contributors and Roles](#8-contributors-and-roles)
 
-9. [Repo Structure](#9-repo-structure)
+[9. Repo Structure](#9-repo-structure)
 
-10. [References](#10-references)
-
+[10. References](#10-references)
 
 ---
 
@@ -529,6 +528,18 @@ NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This scrip
 
 # 9. Repo structure
 
+This repository is organized around ROS2 packages, Arduino code for the end effector, and supporting resources:
+
+- `src/`: ROS2 workspace containing packages for the brain, manipulation, vision, UI, end-effector bridge, UR description, and tower message interfaces.
+- `embedded/`: Arduino source code and reference images for the custom end effector electronics.
+- `image/`: Diagrams and photos used in the README to illustrate system architecture, vision pipeline, and hardware.
+- `solidworks/`: CAD assemblies and parts for the robot’s custom gripper and mechanical components.
+- Top-level helper scripts (`setup*.sh`, `fake_tower.sh`, `real_tower.sh`) streamline environment setup and tower configuration for testing.
+
+NOTE: after running `colcon build` from the `/jenga_bot` directory, expect the following additional folders to appear
+- `build/`
+- `log/`
+- `install/`
 
 ---
 
