@@ -4,6 +4,8 @@
   <img src="image/jengabot.jpg" alt="jengabot" width="400"/>
 </div>
 
+[Watch the full demonstration on YouTube](https://youtu.be/ButhJ49mhdo)
+
 ---
 
 # Table of Contents
@@ -598,10 +600,9 @@ The main feature of our closed-loop system is the ability to push, pull and plac
   </tr>
 </table>
 
-
 ### Full Demonstration
 
-[Watch the full autonomous run on YouTube](https://youtu.be/ButhJ49mhdo)
+[Watch the full demonstration on YouTube](https://youtu.be/ButhJ49mhdo)
 
 
 ## 6.2 Quantitative Evaluation
@@ -610,11 +611,11 @@ From the system requirements set out at the beginning of the project, we were ab
 
 | Metric | Expected Performance | Measured Result |
 |-------|------------------------------------------|-----------------|
-| **Game Play** | Able to remove blocks and replace on top of tower |  |
-| **Speed** | Turn completed inside 1 minute |  |
-| **Repeatability** | Able to take 2+ consecutive turns |  |
-| **Robustness** | Adjusts to major changes in tower position |  |
-| **Accuracy** | Block placement alignment within 1 cm |  |
+| **Game Play** | Able to remove blocks and replace on top of tower | Reliably probed, pushed, pulled and placed blocks on top of tower |
+| **Speed** | Turn completed inside 2 minutes | Complete turn takes 1 min 32 seconds on average |
+| **Repeatability** | Able to take 2+ consecutive turns | Reliably can take atleast 3 turns without fail |
+| **Robustness** | Adjusts to major changes in tower position | System can handle 180° rotations, repositioning of the tower, and removal of blocks from the tower at any stage of gameplay. |
+| **Accuracy** | Block placement alignment within 1 cm | Probes reach the centre of the block within a 5mm tolerance and can safely pick up blocks with a 2 cm offset, where it then places the block on the top within a 5mm tolerance |
 
 ---
 
