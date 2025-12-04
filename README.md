@@ -4,7 +4,7 @@
   <img src="image/jengabot.jpg" alt="jengabot" width="400"/>
 </div>
 
-[Watch the full demonstration on YouTube](https://youtu.be/ButhJ49mhdo)
+[Full Demo ->](https://youtu.be/ButhJ49mhdo)
 
 ---
 
@@ -54,7 +54,7 @@ The robot is designed to provide interactive companionship and stimulating activ
 JengaBot is a robot that playes Jenga against a human player. The robot is able to find a block that is suitable to remove, push it partially out, then pull and grasp it, removing it from the tower before placing the block on the top of the tower. The robot uses [computer vision](#32-technical-components-computer-vision) to find the location of the tower and the blocks that are in the tower. The robot uses [manipulation](#31-technical-components-manipulation) to execute push-pull-place actions. Further, it uses a custom [force sensor](#36-technical-components-custom-end-effector) to determine whether a block is suitably loose to remove. The [brain node](#33-technical-components-brain-node) combines and executes these components, coordinating an entire closed loop game of the Jenga against the user.
 
 ## Video
-[Insert the video here]
+[Full Demo ->](https://youtu.be/ButhJ49mhdo)
 
 ---
 
