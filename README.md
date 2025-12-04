@@ -616,6 +616,10 @@ Copy the tranformation static publisher that was created and run it in a new ter
 
 The robot is now calibrated you should see the tower lining up with the end effector in rviz.
 
+### Step 3: Play Jenga
+
+Setup a jenga tower on the Jenga base plate and then press the start turn button on the UI to start the JengaBot's turn.
+
 ### Troubleshooting
 
 - After running `./setupRealur5e`, it is recommended to manually open/close the end effector via the UI. This ensures that the end_eff_link is running and communicating with the Arduino correctly. 
