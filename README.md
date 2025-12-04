@@ -365,19 +365,15 @@ Horizontal movement of the grippers is achieved through a **gear–rack mechanis
 This motion is **directly driven by servo rotation**.  
 
 **Force Sensor Integration**  
-One gripper tip is equipped with a **flexible force sensor**.  
-This sensor determines whether a block can be pushed **without destabilising the tower**.  
+One gripper tip is equipped with a **pressure force sensor**.  
+This sensor determines whether a block can be pushed without destabilising the tower.  
 
 **Servo Control**  
-Servos are controlled by an **Arduino**.  
-A **servo expansion board** is used to optimize wiring and save I/O pins.  
-
-**Mounting Method**  
-The end-effector is mounted using an **existing slot fixture**, ensuring stable integration with the robot system.  
+Servos are controlled by an Arduino Nano.  
 
 ## Iterations
 
-Due to geometric constraints and issues found during development, the design underwent **multiple iterations**. 
+Due to geometric constraints and issues found during development, the design underwent multiple iterations. 
 
 **Version 0.0 (Prototype for MVP)** 
 
@@ -408,9 +404,6 @@ Adjusted the orientation of the mount to better align with the kinematics code, 
 <div align="center">
   <img src="image/endeffdrawing.png" alt="Engineering Drawing" width="300"/>
 </div>
-
-Here's the photo of actual end effector: 
-
 <div align="center">
   <img src="image/endeff3.jpg" alt="endeff3" width="300"/>
 </div>
@@ -522,6 +515,19 @@ source ~/jenga_ws/install/setup.bash
 - Tower TF and geometry (frames, block sizes, layers) are configured in `real_tower.sh` / `fake_tower.sh`. Adjust to match your physical setup.
 - Force threshold parameter on the brain node defaults to 50.0 g. 
 - Hand–eye calibration: ensure TF connectivity between UR5e base, table/world, and tower frames. No calibration code is required in this repo if TFs are published correctly.
+
+### Troubleshooting
+
+| Symptom | Possible Cause | Quick Fix |
+|--------|----------------|-----------|
+| Servos on the end-effector do not move and are not torqued | The servos are not powered on | Recheck the wiring and try a seperate power supply to power the servos. |
+| `setupRealur5e.sh` fails to connect to robot | Wrong `robot_ip` or network mismatch | Confirm you can `ping <robot_ip>` from the PC; update `robot_ip:=...` in `setupRealur5e.sh`; ensure PC and UR5e are on same subnet. |
+| No `/prongs/force_g` messages | End-effector bridge not talking to the board | Check `ls /dev/ttyUSB* /dev/ttyACM*`; update the `port` parameter in the bridge command; verify correct baud (115200) and that the Arduino is flashed and powered. Sometimes hitting the reset button or unplugging and plugging in the cable fixes it. |
+| Gripper commands (`"o"`, `"cp"`, `"cf"`) do nothing | `/prongs/mode` not received by bridge | Run `ros2 topic echo /prongs/mode` to confirm UI/brain are publishing; check `ros2 node info <bridge_node>` to ensure it subscribes to `/prongs/mode`. |
+| Brain node logs “No tower data yet; using hard-coded fallback” | Vision / tower TF not running or misconfigured | Start `real_tower.sh` / `fake_tower.sh` and vision node; confirm `/vision/tower` is publishing and that `tower_base` appears in `ros2 run tf2_tools view_frames`. |
+| RViz / MoveIt cannot see the tower | TF frames not aligned or missing | Check TF tree for `world`, `table`, `tower_base`, `blockXYf/b`; adjust `TOWER_X/Y/Z` and `TOWER_YAW_DEG` in `real_tower.sh` to match the physical tower. Ensure the camera can see 2 sides of the tower|
+| Brain always E-stops immediately / does not detect immovable blocks | Force sensor offset / threshold too low | Echo `/prongs/force_g` at rest; Test the peak force received from an immovable block just as the prong touches it and set `threshold_g` in the brain_node to that value. |
+| UI window launches but Start button always disabled | `/ui/robot_turn` stuck at `True` | Check that the brain node is running and toggling `/ui/robot_turn`; if testing UI alone, you can manually publish `False` on `/ui/robot_turn`. |
 
 
 # 5. Running the System
