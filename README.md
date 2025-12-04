@@ -154,6 +154,7 @@ bool pos3
 - pos2: True if the second block in the row is occupied.
 - pos3: True if the third block in the row is occupied.
 
+---
 
 # 3.1. Technical Components: Manipulation
 
@@ -236,6 +237,7 @@ Automatically run in the setup sequence, can be run manually using the following
 ros2 run object_detect object_detect
 ```
 
+---
 
 # 3.3. Technical Components: Brain node
 
@@ -315,6 +317,8 @@ Runtime behavior:
 - On startup the node logs it is watching `/prongs/force_g` and waits for `/manipulation_action`.
 - On player trigger: switches to robot turn, selects block, executes the four-step sequence, returns to `WAITING_POS`, sets `/ui/robot_turn = False`, and waits for next signal.
 - If force exceeds `threshold_g` during push: a warning is logged, `/safety/stop` pulses `True`, and the block is added to immovable set.
+
+---
 
 # 3.4. Technical Components: UI Node
 The UI node provides a simple graphical interface (Tkinter-based) that allows a human player to interact with the robot during the Jenga game. It is responsible for:
@@ -568,6 +572,7 @@ source ~/jenga_ws/install/setup.bash
 | Brain always E-stops immediately / does not detect immovable blocks | Force sensor offset / threshold too low | Echo `/prongs/force_g` at rest; Test the peak force received from an immovable block just as the prong touches it and set `threshold_g` in the brain_node to that value. |
 | UI window launches but Start button always disabled | `/ui/robot_turn` stuck at `True` | Check that the brain node is running and toggling `/ui/robot_turn`; if testing UI alone, you can manually publish `False` on `/ui/robot_turn`. |
 
+---
 
 # 5. Running the System
 
@@ -656,7 +661,6 @@ Setup a jenga tower on the Jenga base plate and then press the start turn button
 ### Full Demonstration
 
 [Watch the full demonstration on YouTube](https://youtu.be/ButhJ49mhdo)
-
 
 ## 6.2 Quantitative Evaluation
 
