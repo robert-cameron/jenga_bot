@@ -4,27 +4,37 @@
   <img src="image/jengabot.jpg" alt="jengabot" width="400"/>
 </div>
 
-## Table of Contents
-- [Background and Customers](#background-and-customers)
-  - [Background and Problem Context](#background-and-problem-context)
-  - [Target Customers/Users](#target-customersusers)
-  - [System Purpose](#system-purpose)
-- [System Structure (Node Graph)](#system-structure-node-graph)
-  - [Core Functionality](#core-functionality)
-  - [Package Breakdown](#package-breakdown)
-- [Technical Components: Computer vision](#technical-components-computer-vision)
-- [Technical Components: Manipulation](#technical-components-manipulation)
-- [Technical Components: Brain node](#technical-components-brain-node)
-- [Technical Components: UI Node](#technical-components-ui-node)
-- [Technical Components: System Visualisation](#technical-components-system-visualisation)
-- [Technical Components: Customized End-Effector](#technical-components-customized-end-effector)
-- [Installation and setup](#installation-and-setup)
-- [Running the System](#running-the-system)
-- [Results and Discussion](#results-and-discussion)
-- [Contributors and Roles](#contributors-and-roles)
-- [References](#references)
-
 ---
+
+# Table of Contents
+
+1. [Project Overview](#1-project-overview)  
+
+2. [System Architecture](#2-system-architecture)  
+
+3. [Technical Components](#31-technical-components-manipulation)  
+   - [Manipulation](#31-technical-components-manipulation)  
+   - [Computer Vision](#32-technical-components-computer-vision)  
+   - [Brain Node](#33-technical-components-brain-node)  
+   - [UI Node](#34-technical-components-ui-node)  
+   - [Closed Loop Operation](#35-technical-components-closed-loop-operation)  
+   - [Custom End-Effector](#36-technical-components-custom-end-effector)  
+   - [System Visualisation](#35-technical-components-system-visualisation)
+
+4. [Installation and Setup](#4-installation-and-setup)  
+
+5. [Running the System](#5-running-the-system)
+
+6. [Results and Demonstration](#6-results-and-demonstration)
+
+7. [Discussion and Future Work](#7-discussion-and-future-work)
+
+8. [Contributors and Roles](#8-contributors-and-roles)
+
+9. [Repo Structure](#9-repo-structure)
+
+10. [References](#10-references)
+
 
 ---
 
@@ -46,7 +56,7 @@ The robot is designed to provide interactive companionship and stimulating activ
 # 2. System Architecture
 
 <div align="center">
-  <img src="image/structure.png" alt="structure" width="1000"/>
+  <img src="image/architecture.jpeg" alt="structure" width="1000"/>
 </div>
 
 ## Core Functionality
