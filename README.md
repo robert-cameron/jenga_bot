@@ -13,13 +13,13 @@
 2. [System Architecture](#2-system-architecture)  
 
 3. [Technical Components](#31-technical-components-manipulation)  
-   - [Manipulation](#31-technical-components-manipulation)  
-   - [Computer Vision](#32-technical-components-computer-vision)  
-   - [Brain Node](#33-technical-components-brain-node)  
-   - [UI Node](#34-technical-components-ui-node)  
-   - [Closed Loop Operation](#35-technical-components-closed-loop-operation)  
-   - [Custom End-Effector](#36-technical-components-custom-end-effector)  
-   - [System Visualisation](#35-technical-components-system-visualisation)
+   3.1. [Manipulation](#31-technical-components-manipulation)  
+   3.2. [Computer Vision](#32-technical-components-computer-vision)  
+   3.3. [Brain Node](#33-technical-components-brain-node)  
+   3.4. [UI Node](#34-technical-components-ui-node)  
+   3.5 [Closed Loop Operation](#35-technical-components-closed-loop-operation)  
+   3.6 [Custom End-Effector](#36-technical-components-custom-end-effector)  
+   3.7 [System Visualisation](#37-technical-components-system-visualisation)
 
 4. [Installation and Setup](#4-installation-and-setup)  
 
@@ -55,56 +55,81 @@ The robot is designed to provide interactive companionship and stimulating activ
 
 # 2. System Architecture
 
+## Core Functionality
+This ROS2-based robot plays Jenga by combining **computer vision**, **decision-making**, and **force-sensitive manipulation**.  
+It identifies safe blocks, executes push-pull-place actions, and interacts with a human via a UI.
+
+## System Architecture Diagram
+
+A full System Architecture diagram is shown below, detailing the implemented ROS2 packages, nodes, topics, actions. Interactions between nodes are also indicated.
+
 <div align="center">
   <img src="image/architecture.jpeg" alt="structure" width="1000"/>
 </div>
 
-## Core Functionality
-This ROS-based robot plays Jenga by combining **vision**, **decision-making**, and **force-sensitive manipulation**.  
-It identifies safe blocks, executes push-pull-place actions, and interacts with a human via a UI.
+## State Machine Diagram
+
+A State Machine diagram is shown below, indicating the logical flow of the program. This logic is largely implemented within the `brain` node.
+
+<div align="center">
+  <img src="image/state_diagram.jpeg" alt="structure" width="500"/>
+</div>
+
+## Packages & Nodes
+
+### `ui_node`
+
+The UI allows users to interface with the robot. 
+
+Users are able to:
+- begin JengaBot's turn (start push/pull/place sequence)
+- manually open, fully and partially close the end effector
+- view the current force sensor output
+
+### `brain_node`
+
+The brain node dictates the central logic, decision-making and sequencing. It computes the optimal blocks to remove, and listens to the force sensor to determine whether a block is removable. The brain node also calls **Push**, **Pull** and **Place** moves via the `manipulation_action` action server.
+
+### `object_detect`
+
+The object_detect node uses computer vision to determine the location of the tower. It also determines which blocks are in the tower. 
+
+### `manipulation`
+
+The manipulation node exposes the `manipulation_action` action server. It defines various move types which are used to manipulate the UR5e.
+
+### `end_eff_bridge`
+
+The end_eff_bridge node interfaces with the Arduino via serial communication. It broadcasts the force sensor reading, and controls the positions of the servos.
+
+## Custom Message Types
+
+### `manipulation_action`
+
+```
+string action_type
+geometry_msgs/Pose pose   # optional, must include either pose or tf
+string tf                 # optional, TF frame name
+
+bool result
+string feedback
+```
+
+- action_type: Defines what manipulation to perform
+
+  e.g. "push_move", "place_move", "approach_move", "linear_move", etc.
+
+- pose: A 6-DoF target pose (position + orientation)
+
+- tf: Name of a TF frame whose pose should be used instead of a fixed Pose
+
+- result: true if the manipulation succeeded; false if it failed or was aborted
+
+- feedback: provides updates of path planning, movement etc.
 
 ---
 
-## Package Breakdown
-
-### interface_pkg
-- **Node**: /user_interface  
-- **Role**: UI for human-robot turn-taking  
-- **Action Client**: /command_action  
-- **Topics**: /command, /feedback, /result  
-
-### camera_pkg
-- **Node**: /camera  
-- **Role**: Captures RGB and point cloud data  
-- **Topics**: /rgb, /point_cloud  
-
-### vision_pkg
-- **Node**: /vision  
-- **Role**: Reconstructs tower, classifies blocks  
-- **Topics**: /game_state, /tower_tf  
-
-### game_pkg
-- **Node**: /game_manager  
-- **Role**: Decision engine, selects safest block  
-- **Action Server**: /command_action  
-- **Action Client**: /manipulation_action  
-
-### manipulation_pkg
-- **Node**: /manipulation  
-- **Role**: Executes push/pull/place  
-- **Action Server**: /manipulation_action  
-- **Topics**: /action_type, /block_pose, /feedback, /result  
-
-### end_effector_pkg
-- **Node**: /end_effector  
-- **Role**: Monitors force, stops if >80g  
-- **Topics**: /force_sensor  
-- **Service**: /set_servo_pos  
-
-
----
-
-# 3.1 Technical Components: Manipulation
+# 3.1. Technical Components: Manipulation
 
 The **Manipulation Node** is responsible for executing robot arm actions using ROS 2, MoveIt, and TF2.  
 It provides an **action server** (`manipulation_action`) that accepts goals specifying either a target pose or a TF frame.  
@@ -142,7 +167,7 @@ The node continuously monitors goals, supports cancellation, and reports success
 
 ---
 
-# 3.2 Technical Components: Computer vision
+# 3.2. Technical Components: Computer vision
 
 Our vision pipeline is designed to detect and interpret the state of blocks within a tower structure using a depth camera and ArUco markers. The system subscribes to both RGB and depth image topics, processes them with OpenCV, and integrates the results into ROS2 for downstream robotic control.
 
@@ -165,7 +190,7 @@ if success:
 ---
 
 
-# 3.3 Technical Components: Brain node
+# 3.3. Technical Components: Brain node
 
 ## Overview
 
@@ -219,7 +244,7 @@ If you need the node to reset automatically, check the node parameters for a hys
 ---
 
 
-# 3.4 Technical Components: UI Node
+# 3.4. Technical Components: UI Node
 
 ## Overview
 
@@ -244,12 +269,12 @@ ui_node provides a minimal terminal-based interface for human control. It reads 
 
 ---
 
-# 3.5 Technical Components: Closed Loop operation
+# 3.5. Technical Components: Closed Loop operation
 
 
 ---
 
-# 3.6 Technical Components: Custom End-Effector 
+# 3.6. Technical Components: Custom End-Effector 
 
 ## Features
 
@@ -314,7 +339,7 @@ Here's the photo of actual end effector:
 
 ---
 
-# 3.5 Technical Components: System Visualisation
+# 3.7. Technical Components: System Visualisation
 
 The robot features two simultaneous user interaction windows. 
 
