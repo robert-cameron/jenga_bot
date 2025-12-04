@@ -591,7 +591,7 @@ The main feature of our closed-loop system is the ability to push, pull and plac
 
 ### Full Autonomous Turn
 
-[![Full Autonomous Run](https://img.youtube.com/vi/ButhJ49mhdo/maxresdefault.jpg)](https://youtu.be/ButhJ49mhdo)
+[![Full Autonomous Run](/image/jengabot.jpg)](https://youtu.be/ButhJ49mhdo)
 
 
 
