@@ -178,17 +178,17 @@ ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{a
 
 # 3.2. Technical Components: Computer vision
 
-Our vision pipeline is designed to detect and locate the Jenga tower aswell as determining the state of blocks within a tower structure. The system subscribes to the RGB image topic, processes it with OpenCV, and outputs the results using ROS2 for use in the closed loop control.
+Our vision pipeline is designed to detect and locate the Jenga tower, as well as determine the state of blocks within the tower. The system subscribes to the RGB image topic, processes it with OpenCV, and outputs the results using ROS2 for use in the closed loop control.
 
 <div align="center">
   <img src="image/ComputerVision.png" alt="ComputerVision" width="600"/>
 </div>
 
-The pipeline begins with detectinng the tower using aruco markers, there is an aruco marker located on each side of the tower, two markers will always be visible to the camera, the locations of these markers are determined using solvePNP from the corners of the markers and the known dimensions of the marker. The actual location of the tower is interpolated at the perpendicular intersection point of the two visible markers. Once the location of the tower is determined, the system computes transformations and broadcasts them via TF, ensuring that the robot knows the location of the tower and the blocks that are in the tower.
+The pipeline begins with detecting the tower using ArUco markers. Given that there is an ArUco marker located on each side of the tower, two markers will always be visible to the camera. The locations of these markers are determined using solvePNP from the corners of the markers and the known dimensions of the marker. The actual location of the tower is interpolated at the perpendicular intersection point of the two visible markers. Once the location of the tower is determined, the system computes transformations and broadcasts them via TF, ensuring that the robot knows the location of the tower and the blocks that are in the tower.
 
-Following finding the location of the tower, the system begins to detect the blocks that are in the tower. Organge rectangles which are glued to the end of each block in the tower, these are detected with a HSV color mask and contours are extracted. 
+Following finding the location of the tower, the system begins to detect the blocks that are in the tower. Orange rectangles (which are glued to the end of each block in the tower) are detected with an HSV color mask and contours are extracted. 
 
-To determine the block that relates to each contour the x and y coordinates (in the image) are compared to the closest corner of the tower and are then grouped into their respctive level group and horizontal position group (as coloured in the image above) using K-means and hierarchical clustering. This data is then used to populate a occupancy message which is published to the `/vision/tower` topic in the custom `Tower` message format.
+To determine the block that corresponds to each contour, the x and y coordinates (in the image) are compared to the closest corner of the tower. They are then grouped into their respective level group and horizontal position group (as coloured in the image above) using K-means and hierarchical clustering. This data is then used to populate an occupancy message which is published to the `/vision/tower` topic in the custom `Tower` message format.
 
 ```
 # Tower.msg
@@ -202,7 +202,7 @@ bool pos2
 bool pos3
 ```
 
-Markers are also outputted to the `/vision/markers` topic in the `MarkerArray` message format for the visualisation of the blocks in RViz.
+Markers are also output to the `/vision/markers` topic in the `MarkerArray` message format for the visualisation of the blocks in RViz.
 
 
 # 3.3. Technical Components: Brain node
