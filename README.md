@@ -717,4 +717,12 @@ NOTE: after running `colcon build` from the `/jenga_bot` directory, expect the f
 
 # 10. References
 
+We would like to acknowledge the the help of our tutor David and the rest of the teaching team who were very helpful in the development of this project and supported us in developing solutions to the problems we faced.
+
+- Code was adapted from the lab material from the MTRN4231 course.
+- [Ros2 Documentation](https://docs.ros.org/en/humble/index.html)
+- [OpenCV Documentation](https://docs.opencv.org/4.x/index.html)
+
+Inspiration: [https://www.youtube.com/watch?v=o1j_amoldMs](https://www.youtube.com/watch?v=o1j_amoldMs)
+
 ---
