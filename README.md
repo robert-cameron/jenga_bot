@@ -207,57 +207,94 @@ Markers are also output to the `/vision/markers` topic in the `MarkerArray` mess
 
 # 3.3. Technical Components: Brain node
 
-## Overview
 
-This node monitors gripper force and raises a safety stop when the measured force exceeds a configured threshold.
+Overview  
+The Brain node is the central coordinator that links perception, motion, safety, and the human player into an autonomous Jenga-playing system.. It takes in the tower state from the vision pipeline, selects safe blocks, issues the push, pick and place manipulation goals, monitors gripper force to mark immovable blocks and trigger safety stops, and manages turn-taking with the user interface. 
 
-## Behavior
-- Subscribes to `/prongs/force_g` (std_msgs/msg/Float32) — gripper force in grams.  
-- Compares each reading to a configured threshold (default: 80 g).  
-- Publishes `True` on `/safety/stop` (std_msgs/msg/Bool) while the force is above the threshold (ESTOP).  
-- Latches internally:
-  - On the first crossing above the threshold, logs a warning.
-  - Continues publishing `True` while force remains above the threshold.
-  - Optionally resets the latch when force drops below a lower band (for example, 80% of the threshold) if configured.
-- Does not command actuators or interact with MoveIt; it only raises a safety flag.
+Behavior and main loop
+- Alternates between:
+  - Player turn: publishes `Bool(data=false)` on `/ui/robot_turn` and blocks until `/ui/player_done` receives `True`.
+  - Robot turn: publishes `Bool(data=true)` on `/ui/robot_turn`, selects a candidate block, and executes the push→pull→place→approach cycle. On success it returns to the waiting pose (`WAITING_POS = "block72b"`) and hands control back to the player. Non-recoverable errors during pull/place abort the loop and release the UI.
 
-## Build instructions
+Block selection
+- Reads the latest `Tower` message under a mutex. Tower format:
+- Builds a per-row occupancy model (left/centre/right).
+- Maintains `_immovable_blocks` set of (row_num, pos) marked after excessive force triggers.
+- Block selection strategy (`get_next_blocks()`):
+  - Scan rows from index 1 upward.
+  - For a row with 3 blocks: prefer centre → left → right, skipping immovables.
+  - For 2 blocks with centre: try side first, then centre.
+  - For 2 side blocks only: normally skip, but allow if centre was previously marked immovable.
+  - Single-block rows are skipped (unstable).
+  - If none found, return empty names and log a warning.
+- When a block is chosen, construct TF names:
+  - `push_tf = "block{row_num}{pos}b"`
+  - `pull_tf = "block{row_num}{pos}f"`
 
-From your ROS 2 workspace:
+Placement logic
+- Inspect top row occupancy:
+  - If top row full → place on new row above, centre back: `(place_row = top_row + 1, place_pos = 2)`.
+  - Else place into the first gap on the current top row, preferring centre → left → right.
+- `place_tf = "block{place_row}{place_pos}f"`
+
+Manipulation sequence
+- For each robot turn the node sends these actions to the manipulation action server:
+  1. `("push_move", push_tf)`
+  2. `("pull_move", pull_tf)`
+  3. `("place_move", place_tf)`
+  4. `("approach_move", WAITING_POS)`
+- During `push_move` the node enables force checking (`_force_check_enabled = True`) and records `_current_push_block`. If a force stop occurs during push, that block is added to `_immovable_blocks` and the node selects another candidate.
+- Goals are sent with an async action client; the node synchronously waits for completion using threading events.
+- Rejected goals or failures:
+  - During `push_move`: mark attempt unsuccessful and retry with another block.
+  - During `pull_move` or `place_move`: treat as non-recoverable, log error, set `/ui/robot_turn = False`, and exit loop.
+
+Force monitoring and safety
+- Subscribes to `/prongs/force_g` (`std_msgs/Float32`).
+- Configurable parameter `threshold_g` (default `50.0` g).
+- On force callback:
+  - If reading > `threshold_g`:
+    - Log warning and publish `Bool(data=true)` once on `/safety/stop`.
+    - If `_current_push_block` set, add it to `_immovable_blocks`.
+- This integrates physical feedback into strategic decisions by avoiding immovable blocks.
+
+Automatic prong closing
+- A short-period timer `_try_close_prongs()` checks for subscribers to `/prongs/mode` (the serial bridge).
+- On detection it publishes `"cf"` once on `/prongs/mode` to close the gripper fully.
+
+Build instructions
 ```
-cd ~/ros2_ws
-colcon build --packages-select brain
+cd ~/jenga_ws
+colcon build --packages-select brain_node
 source install/setup.bash
 ```
 
-(Note: use setup.bash, not setup.bas.)
-
-## How to run
-
-Assuming all hardware drivers are running and `/prongs/force_g` is being published:
+How to run
 ```
-ros2 run brain brain
+ros2 launch brain_node brain.launch.py
 ```
-Override the threshold via parameters:
-```
-ros2 run brain brain --ros-args -p threshold_g:=100.0
-```
-## Topics
 
-### Subscriptions
-| Topic | Type | Description |
-|---|---:|---|
-| `/prongs/force_g` | `std_msgs/msg/Float32` | Force from gripper in grams |
+Topics and action interface
 
-### Publications
-| Topic | Type | Description |
-|---|---:|---|
-| `/safety/stop` | `std_msgs/msg/Bool` | `True` when force exceeds threshold (ESTOP) |
+Subscriptions
+- `/vision/tower` — `tower_interfaces/msg/Tower` — tower occupancy.
+- `/prongs/force_g` — `std_msgs/msg/Float32` — gripper force (g).
+- `/ui/player_done` — `std_msgs/msg/Bool` — player signals done.
 
-If you need the node to reset automatically, check the node parameters for a hysteresis or reset-band option (e.g., a fraction of the threshold) and set it appropriately.
+Publications
+- `/safety/stop` — `std_msgs/msg/Bool` — emits `True` when force exceeds threshold (ESTOP pulse).
+- `/prongs/mode` — `std_msgs/msg/String` — sends `"cf"` once at startup to close prongs.
+- `/ui/robot_turn` — `std_msgs/msg/Bool` — `True` while robot is executing moves; `False` during player turn.
 
----
+Actions
+- `/manipulation_action` — `manipulation/action/Manipulation` — request `push_move`, `pull_move`, `place_move`, `approach_move` using named TF frames (e.g., `block72b`).
 
+Runtime behavior:
+- On startup the node logs it is watching `/prongs/force_g` and waits for `/manipulation_action`.
+- Closes prongs when `/prongs/mode` subscriber appears.
+- Publishes `/ui/robot_turn = False` and waits for `/ui/player_done`.
+- On player trigger: switches to robot turn, selects block, executes the four-step sequence, returns to `WAITING_POS`, sets `/ui/robot_turn = False`, and waits for next signal.
+- If force exceeds `threshold_g` during push: a warning is logged, `/safety/stop` pulses `True`, and the block is added to immovable set.
 
 # 3.4. Technical Components: UI Node
 
