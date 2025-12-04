@@ -19,7 +19,7 @@
 - [3.2. Computer Vision](#32-technical-components-computer-vision)  
 - [3.3. Brain Node](#33-technical-components-brain-node)  
 - [3.4. UI Node](#34-technical-components-ui-node)  
-- [3.5 Closed Loop Operation](#35-technical-components-closed-loop-operation)  
+- [3.5 Closed-Loop Operation](#35-technical-components-closed-loop-operation)  
 - [3.6 Custom End-Effector](#36-technical-components-custom-end-effector)  
 - [3.7 System Visualisation](#37-technical-components-system-visualisation)
 
@@ -51,7 +51,7 @@ The primary users are children who need interactive companionship during periods
 The robot is designed to provide interactive companionship and stimulating activities for children, offering a safe and engaging alternative to passive screen time. Fostering attention, creativity, and social interaction helps improve emotional well‑being and developmental outcomes. At the same time, it reassures parents that their children are meaningfully engaged even when alone at home.  
 
 ## Solution - JengaBot
-JengaBot is a robot that playes Jenga against a human player. The robot is able to find a block that is suitable to remove, push it partially out, then pull and grasp it, removing it from the tower before placing the block on the top of the tower. The robot uses [computer vision](#32-technical-components-computer-vision) to find the location of the tower and the blocks that are in the tower. The robot uses [manipulation](#31-technical-components-manipulation) to execute push-pull-place actions. Further, it uses a custom [force sensor](#36-technical-components-custom-end-effector) to determine whether a block is suitably loose to remove. The [brain node](#33-technical-components-brain-node) combines and executes these components, coordinating an entire closed loop game of the Jenga against the user.
+JengaBot is a robot that playes Jenga against a human player. The robot is able to find a block that is suitable to remove, push it partially out, then pull and grasp it, removing it from the tower before placing the block on the top of the tower. The robot uses [computer vision](#32-technical-components-computer-vision) to find the location of the tower and the blocks that are in the tower. The robot uses [manipulation](#31-technical-components-manipulation) to execute push-pull-place actions. Further, it uses a custom [force sensor](#36-technical-components-custom-end-effector) to determine whether a block is suitably loose to remove. The [brain node](#33-technical-components-brain-node) combines and executes these components, coordinating an entire closed-loop game of the Jenga against the user.
 
 ## Video
 [Full Demo](https://youtu.be/ButhJ49mhdo)
@@ -74,7 +74,7 @@ A full System Architecture diagram is shown below, detailing the implemented ROS
 
 ## State Machine Diagram
 
-A State Machine diagram is shown below, indicating the logical flow of the program. This logic is largely implemented within the [brain node](#33-technical-components-brain-node) and implments the [closed loop operation](#35-technical-components-closed-loop-operation).
+A State Machine diagram is shown below, indicating the logical flow of the program. This logic is largely implemented within the [brain node](#33-technical-components-brain-node) and implments the [closed-loop operation](#35-technical-components-closed-loop-operation).
 
 <div align="center">
   <img src="image/state_diagram.jpeg" alt="structure" width="500"/>
@@ -204,7 +204,7 @@ ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{a
 
 # 3.2. Technical Components: Computer vision
 
-Our vision pipeline is designed to detect and locate the Jenga tower, as well as determine the state of blocks within the tower. The system subscribes to the RGB image topic, processes it with OpenCV, and outputs the results using ROS2 for use in the closed loop control.
+Our vision pipeline is designed to detect and locate the Jenga tower, as well as determine the state of blocks within the tower. The system subscribes to the RGB image topic, processes it with OpenCV, and outputs the results using ROS2 for use in the closed-loop control.
 
 <div align="center">
   <img src="image/ComputerVision.png" alt="ComputerVision" width="600"/>
@@ -382,13 +382,15 @@ ros2 run ui_node player_gui
 
 ---
 
-# 3.5. Technical Components: Closed Loop operation
+# 3.5. Technical Components: Closed-loop operation
 
-Closed loop operation is achieved by the [brain node](#33-technical-components-brain-node) which is able to coordinate a closed loop turn of the JengaBot.
+Closed-loop operation is achieved by the [brain node](#33-technical-components-brain-node), which is able to coordinate a closed-loop round of Jenga.
 
-The closed loop operation takes inputs from the [force sensor](#36-technical-components-custom-end-effector) and the [computer vision](#32-technical-components-computer-vision) to complete aspects of the turn. The outputs then are used to control the robot via the [manipulation](#33-technical-components-brain-node) and the [end effector](#36-technical-components-custom-end-effector) nodes.
+JengaBot takes inputs from the [force sensor](#36-technical-components-custom-end-effector) and the [computer vision](#32-technical-components-computer-vision) to understand the state of the game. The outputs then are used to control the robot via the [manipulation](#31-technical-components-manipulation) and the [end effector](#36-technical-components-custom-end-effector) nodes.
 
-This is used to implement the [state machine diagram](#state-machine-diagram) which is used to determine the optimal blocks to remove, and listens to the force sensor to determine whether a block is removable.
+Hence, the tower is recognised in different locations and orientations and the system understands and adapts when the tower moves, or blocks are removed. The inputs are updated and used in real time, so JengaBot can respond to changes to the tower mid-game.
+
+Closed-loop operation is also implemented via the use of the [force sensor](#36-technical-components-custom-end-effector), which is used to determine the optimal blocks to remove. The [brain node](#33-technical-components-brain-node) listens to the [force sensor](#36-technical-components-custom-end-effector) to determine whether a block is removable. Further detail about how this is implemented is shown in the [state machine diagram](#state-machine-diagram).
 
 ---
 
@@ -454,7 +456,7 @@ Adjusted the orientation of the mount to better align with the kinematics code, 
 
 The robot features two simultaneous windows used for system visualisation:
   1. A custom UI,
-  2. RVIZ
+  2. RViz
 
 The custom UI indicates the state of the game, i.e. whether it is the User's or Robot's turn to remove a block.
 
@@ -464,7 +466,7 @@ When the 'Start / Next Move' button is clickable, the user is free to take their
   <img src="image/window2.png" alt="window2" width="300"/>
 </div>
 
-RVIZ displays the state, position and orientation of each block in the tower, based on output from the `object_detect` node. The UR5e and attached end effector is displayed, indicative of all current joint positions and orientations. 
+RViz displays the state, position and orientation of each block in the tower, based on output from the `object_detect` node. The UR5e and attached end effector is displayed, indicative of all current joint positions and orientations. 
 
 <div align="center">
   <img src="image/window1.png" alt="window1" width="300"/>
@@ -480,7 +482,7 @@ RVIZ displays the state, position and orientation of each block in the tower, ba
 - ROS 2: Humble 
 - Build tools: `colcon`, `python3-colcon-common-extensions`, `git`  
 - UR stack: `ur_robot_driver`, `ros2_control`, MoveIt 2  
-- Tools: `rviz2`, `tf2_ros`  
+- Tools: `RViz2`, `tf2_ros`  
 
 Follow the official ROS 2 Humble install guide, then install the UR driver and MoveIt packages on the same machine that will run the JengaBot stack.
 
@@ -593,7 +595,7 @@ This script will `colcon build` the solution and open the following tabs in the 
 - RealTower
 - ObjectDetection
 
-Wait up to 30 seconds for the nodes to start up. The UI and RVIZ will launch automatically when this script is run.
+Wait up to 30 seconds for the nodes to start up. The UI and RViz will launch automatically when this script is run.
 
 Once all nodes have started, run the `ros` script from the UR5e teach pendent.
 
@@ -605,7 +607,7 @@ NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This scrip
 
 After setting up the robot, the camera transformation needs to calibrated.
 
-First, move the robot arm so the end effector is positioned just before the touching point if it was doing a push move for block at row 4 position 2 on the side of the tower which is closest to the base of the UR5E. When doing this do not use free move, rather use the manual move controls as it is important that the final link in the robot remains vertical for the calibration process to work.
+First, move the robot arm so that the end effector is just touching the middle block in row 4, on the side of the tower which is closest to the base of the UR5e. When doing this, do not use free move, rather use the manual move controls as it is important that the final link in the robot remains vertical for the calibration process to work.
 
 Next, run the following script from within the `/jenga_bot` directory:
 
@@ -617,7 +619,7 @@ This script will create a tranformation for that specific block and then run the
 
 Copy the tranformation static publisher that was created and run it in a new terminal tab after ending the exisitng base_link to camera_link transformation publisher.
 
-The robot is now calibrated you should see the tower lining up with the end effector in rviz.
+The robot is now calibrated! The location of the tower in RViz should now match its real world position.
 
 ### Step 3: Play Jenga
 
@@ -628,7 +630,7 @@ Setup a jenga tower on the Jenga base plate and then press the start turn button
 - After running `./setupRealur5e`, it is recommended to manually open/close the end effector via the UI. This ensures that the end_eff_link is running and communicating with the Arduino correctly. 
   - If the end effector does not respond, restarting the Arduino generally fixes this.
 - If the robot does not move when expected, stop and restart the `ros` script from the UR5e teach pendent.
-- If movement suddenly stops, it is likely that the UR5e joint limits would be exceeded by moving to the next position. Move the jenga tower into a more suitable location and restart the robot.
+- If movement suddenly stops, it is likely that the UR5e joint limits would be exceeded by moving to the next position. Move the jenga tower into a more suitable location and restart the robot with `./setupRealur5e`.
 - If the object detection node does not output show an image dialog box, it is likely that this node will need to be restarted. This can be done by running the following command in a new terminal tab: `ros2 run object_detect object_detect`
 
 ---
@@ -677,17 +679,28 @@ From the system requirements set out at the beginning of the project, we were ab
 
 # 7. Discussion and Future Work
 
-We have created a successful implementation of JengaBot, but there were challenges in the implementation of this project. First of all with manipulation we had challenges using moveit planning and execution when putting in a collision opsticle for the tower so robot would not run into the tower, to solves this we made a custom path planning algorithm that determines which face the robot is on and then choses points on each of the corners to move between 2 points on the tower. This solution was highly effective and meant that we had very smooth movement of the robot. We also found that increasing the speed of this cause the robot to be unreliable when chaining the movements together, for this reason we maintained our orginial slower speed.
+Overall, we have created a successful implementation of JengaBot, however there were challenges in the implementation of this project. 
 
-Vision also had many challenges, originally we were using a normal sized Jenga tower and the depth camera to both work out the location of the tower and to detect which blocks were in the tower, however this was not very accurate as depth information at the distance we were using was inaccurate and would change with time leading to noise in the tower moving around on the visualisation. To combat these issues we decided to incrase the size of the tower, increasing the resolution of the camera and moving away from using the depth camera. We achieved this by using SolvePNP to locate the aurco markers instead of depth and then doing the calulations to determine which countout matched which block in the image rather than finding the points that related to in the real world, this greatly improved the accuracy of the detection and allowed us to achieve a reliable approach to locating the tower and which blocks were in it.
+#### Manipulation
 
-Another challege was todo with joint limits, we found that with our larger tower and end effector there was not much space at which the UR5E robot arm could reach all sides of the tower and fail to execute a move as it could not reach the desired position, for testing in this version we just had to position the tower within the limiting box. This will need to be addressed in future versions of the system.
+Firstly, we faced issues using MoveIt planning and execution when putting in a collision obstacle for the tower. To solve this, we made a custom path planning 
+algorithm that determines which face the robot is currently on, and then chooses points on each of the corners to move between 2 points on the tower. This solution was highly effective and meant that we had very smooth movement of the robot. We also found that increasing the speed of this caused the robot to be unreliable when chaining the movements together. For this reason we maintained our original slower speed.
 
-Our final challenge was the force sensor on the end effector, we found that mounting such a small sensor on the end effector was difficult to do well and after mounting it we found that it gave inconsistent readings between testing sessions with sensors falling apart and breaking causing the thresholds having to be recalibrated. In fact right before our final demonstration we had issues with the force sensor giving bad readings and we had to adjust how the sensor was mounted to get it to work. Further we had challenges with getting the block pushed most of the way out and but then right at the end the force increases above the threashold causing the robot to think this block is immovable and leaving a block half way through the tower, this issue will need to be solved in future versions of the system with either an algorithm to only cancel when at the start of the movement or a better force sensor and mounting solution.
+#### Computer vision
 
-Some other future improvements would be to redesign the end effector to make it smaller and better able to reach around the tower so that we aren't as constrained by joint limits. To continue developing the vision system removing the remaining bugs and issues from when the tower is in a less optimal position. Potentailly also use a larger robot arm which is less constrained by joint limits and would allow us to move the robot around the tower more easily.
+Vision also had many challenges. Initially, we were using a normal sized Jenga tower and the depth camera to work out the location of the tower and to detect which blocks were in the tower. This was not very accurate as depth information at the distance we were using was inaccurate and would change with time leading to noise in the tower location (tower moving around on the visualisation). To combat these issues, we decided to increase the size of the tower, increase the resolution of the camera and stop using the depth camera. We achieved this by using SolvePNP to locate the ArUco markers instead of depth and then doing the calculations to determine which contour matched which block in the image, rather than finding the points that related to in the real world. This greatly improved the accuracy of the detection and allowed us to achieve a reliable approach to locating the tower and which blocks were in it.
 
-Overally we believe our soliution to be a novel approach that effectively and reliably plays the game of Jenga, It has effectly integrated multiple systems from vision and force sensing to robot arm control and manipulation. We found that the simplistic motion controller and reliability of vision outputs allowed us to create a system that was reliablly able to solve the given problem. 
+#### Physical joint limits
+Another challenge was to do with joint limits, we found that with our larger tower and end effector there was not much space at which the UR5e robot arm could reach all sides of the tower. This meant it would fail to execute some moves, as it could not reach the desired position. For testing in this version, we were restricted to position the tower within a small region. This will need to be addressed in future versions of the system by using a bigger arm (e.g. UR10e), or a smaller tower.
+
+#### Force sensor
+Our final challenge was the force sensor on the end effector. We found that mounting such a small sensor on the end effector was difficult to achieve. After mounting it, we found that it gave inconsistent readings between testing sessions with sensors falling apart and breaking, requiring us to recalibrate force thresholds. In fact, right before our final demonstration we had issues with the force sensor giving bad readings and we had to adjust how the sensor was mounted to get it to work. Further, we had challenges where the block would be partially pushed, but then the force increases above the threshold causing the robot to think this block is immovable. In this case, the block is left half way pushed out of the tower. This issue will need to be solved in future versions of the system with either an algorithm to only cancel when at the start of the movement or an improved force sensor and mounting solution.
+
+#### Further future improvements
+Another future improvement to consider would be to redesign the end effector to make it smaller and better able to reach around the tower. This would ensure we aren't as constrained by joint limits. Also, the project could benefit from continued development of the vision system, removing the remaining bugs and issues faced when the tower is in a suboptimal position. Finally, the use of a larger robot arm (which is less constrained by joint limits) could be considered, as it would allow us to move the robot around the tower more easily.
+
+#### Summary
+Overall, we believe our solution is a novel approach that effectively and reliably plays the game of Jenga. It has effectively integrated multiple systems from vision and force sensing to robot arm control and manipulation. We found that the simplistic motion controller and reliability of vision outputs allowed us to create a system that was reliably able to solve the given problem. 
 
 We hope that this project will inspire others to take on similar challenges and that we can continue to improve the system to make it even more effective.
 
@@ -720,7 +733,7 @@ NOTE: after running `colcon build` from the `/jenga_bot` directory, expect the f
 
 # 10. References
 
-We would like to acknowledge the the help of our tutor David and the rest of the teaching team who were very helpful in the development of this project and supported us in developing solutions to the problems we faced.
+We would like to acknowledge the the help of our tutor David and the rest of the MTRN4231 teaching team, who were very helpful in the development of this project and supported us in developing solutions to the problems we faced.
 
 - Code was adapted from the lab material from the MTRN4231 course.
 - [Ros2 Documentation](https://docs.ros.org/en/humble/index.html)
