@@ -590,13 +590,10 @@ The main feature of our closed-loop system is the ability to push, pull and plac
 <img src="image/PlaceBlock.gif" width="300"/>
 
 ### Full Autonomous Turn
-<video width="600" controls>
-  <source src="videos/full_run.mp4" type="video/mp4">
-</video>
 
-### Full Autonomous Turn
-
-[Watch the full autonomous run on YouTube](https://youtu.be/ButhJ49mhdo)
+<div align="center">
+  <iframe width="600" height="338" src="https://www.youtube.com/embed/ButhJ49mhdo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</div>
 
 
 ## 6.2 Quantitative Evaluation
