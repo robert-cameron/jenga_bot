@@ -518,7 +518,7 @@ source ~/jenga_ws/install/setup.bash
 
 ### Troubleshooting
 
-| Symptom | Possible Cause | Quick Fix |
+| Error | Possible Cause | Fix |
 |--------|----------------|-----------|
 | Servos on the end-effector do not move and are not torqued | The servos are not powered on | Recheck the wiring and try a seperate power supply to power the servos. |
 | `setupRealur5e.sh` fails to connect to robot | Wrong `robot_ip` or network mismatch | Confirm you can `ping <robot_ip>` from the PC; update `robot_ip:=...` in `setupRealur5e.sh`; ensure PC and UR5e are on same subnet. |
@@ -576,10 +576,46 @@ NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This scrip
 ---
 
 # 6. Results and Demonstration
-- **Performance**: How the system meets design goals.  
-- **Quantitative Results**: Accuracy, repeatability, robustness.  
-- **Demonstration Media**: Photos, figures, or videos of operation.  
-- **Discussion**: Challenges faced, solutions, and opportunities for improvement.  
+## 5.1 Demonstration
+
+### Block Pick
+<!-- Replace src with your actual video path -->
+<video width="600" controls>
+  <source src="videos/pick_demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+### Block Pull
+<video width="600" controls>
+  <source src="videos/pull_demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+### Block Placement
+<video width="600" controls>
+  <source src="videos/place_demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+### Full Autonomous Turn
+<video width="600" controls>
+  <source src="videos/full_run.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+
+## 5.2 Quantitative Evaluation
+
+From the system requirements set out at the beginning of the project, we were able to evaluate the result of the final product against these:
+
+| Metric | Expected Performance | Measured Result |
+|-------|------------------------------------------|-----------------|
+| **Game Play** | Able to remove blocks and replace on top of tower |  |
+| **Speed** | Turn completed inside 1 minute |  |
+| **Repeatability** | Able to take 2+ consecutive turns |  |
+| **Robustness** | Adjusts to major changes in tower position |  |
+| **Accuracy** | Block placement alignment within 1 cm |  |
+| **Results & Presentation** | Clear visuals, demonstrations, and quantitative data |  |
 
 ---
 
