@@ -19,7 +19,7 @@
 - [3.2. Computer Vision](#32-technical-components-computer-vision)  
 - [3.3. Brain Node](#33-technical-components-brain-node)  
 - [3.4. UI Node](#34-technical-components-ui-node)  
-- [3.5 Closed Loop Operation](#35-technical-components-closed-loop-operation)  
+- [3.5 Closed-Loop Operation](#35-technical-components-closed-loop-operation)  
 - [3.6 Custom End-Effector](#36-technical-components-custom-end-effector)  
 - [3.7 System Visualisation](#37-technical-components-system-visualisation)
 
@@ -51,7 +51,7 @@ The primary users are children who need interactive companionship during periods
 The robot is designed to provide interactive companionship and stimulating activities for children, offering a safe and engaging alternative to passive screen time. Fostering attention, creativity, and social interaction helps improve emotional well‑being and developmental outcomes. At the same time, it reassures parents that their children are meaningfully engaged even when alone at home.  
 
 ## Solution - JengaBot
-JengaBot is a robot that playes Jenga against a human player. The robot is able to find a block that is suitable to remove, push it partially out, then pull and grasp it, removing it from the tower before placing the block on the top of the tower. The robot uses [computer vision](#32-technical-components-computer-vision) to find the location of the tower and the blocks that are in the tower. The robot uses [manipulation](#31-technical-components-manipulation) to execute push-pull-place actions. Further, it uses a custom [force sensor](#36-technical-components-custom-end-effector) to determine whether a block is suitably loose to remove. The [brain node](#33-technical-components-brain-node) combines and executes these components, coordinating an entire closed loop game of the Jenga against the user.
+JengaBot is a robot that playes Jenga against a human player. The robot is able to find a block that is suitable to remove, push it partially out, then pull and grasp it, removing it from the tower before placing the block on the top of the tower. The robot uses [computer vision](#32-technical-components-computer-vision) to find the location of the tower and the blocks that are in the tower. The robot uses [manipulation](#31-technical-components-manipulation) to execute push-pull-place actions. Further, it uses a custom [force sensor](#36-technical-components-custom-end-effector) to determine whether a block is suitably loose to remove. The [brain node](#33-technical-components-brain-node) combines and executes these components, coordinating an entire closed-loop game of the Jenga against the user.
 
 ## Video
 [Full Demo](https://youtu.be/ButhJ49mhdo)
@@ -74,7 +74,7 @@ A full System Architecture diagram is shown below, detailing the implemented ROS
 
 ## State Machine Diagram
 
-A State Machine diagram is shown below, indicating the logical flow of the program. This logic is largely implemented within the [brain node](#33-technical-components-brain-node) and implments the [closed loop operation](#35-technical-components-closed-loop-operation).
+A State Machine diagram is shown below, indicating the logical flow of the program. This logic is largely implemented within the [brain node](#33-technical-components-brain-node) and implments the [closed-loop operation](#35-technical-components-closed-loop-operation).
 
 <div align="center">
   <img src="image/state_diagram.jpeg" alt="structure" width="500"/>
@@ -201,7 +201,7 @@ ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{a
 
 # 3.2. Technical Components: Computer vision
 
-Our vision pipeline is designed to detect and locate the Jenga tower, as well as determine the state of blocks within the tower. The system subscribes to the RGB image topic, processes it with OpenCV, and outputs the results using ROS2 for use in the closed loop control.
+Our vision pipeline is designed to detect and locate the Jenga tower, as well as determine the state of blocks within the tower. The system subscribes to the RGB image topic, processes it with OpenCV, and outputs the results using ROS2 for use in the closed-loop control.
 
 <div align="center">
   <img src="image/ComputerVision.png" alt="ComputerVision" width="600"/>
@@ -379,13 +379,15 @@ ros2 run ui_node player_gui
 
 ---
 
-# 3.5. Technical Components: Closed Loop operation
+# 3.5. Technical Components: Closed-loop operation
 
-Closed loop operation is achieved by the [brain node](#33-technical-components-brain-node) which is able to coordinate a closed loop turn of the JengaBot.
+Closed-loop operation is achieved by the [brain node](#33-technical-components-brain-node), which is able to coordinate a closed-loop round of Jenga.
 
-The closed loop operation takes inputs from the [force sensor](#36-technical-components-custom-end-effector) and the [computer vision](#32-technical-components-computer-vision) to complete aspects of the turn. The outputs then are used to control the robot via the [manipulation](#33-technical-components-brain-node) and the [end effector](#36-technical-components-custom-end-effector) nodes.
+JengaBot takes inputs from the [force sensor](#36-technical-components-custom-end-effector) and the [computer vision](#32-technical-components-computer-vision) to understand the state of the game. The outputs then are used to control the robot via the [manipulation](#31-technical-components-manipulation) and the [end effector](#36-technical-components-custom-end-effector) nodes.
 
-This is used to implement the [state machine diagram](#state-machine-diagram) which is used to determine the optimal blocks to remove, and listens to the force sensor to determine whether a block is removable.
+Hence, the tower is recognised in different locations and orientations and the system understands and adapts when the tower moves, or blocks are removed. The inputs are updated and used in real time, so JengaBot can respond to changes to the tower mid-game.
+
+Closed-loop operation is also implemented via the use of the [force sensor](#36-technical-components-custom-end-effector), which is used to determine the optimal blocks to remove. The [brain node](#33-technical-components-brain-node) listens to the [force sensor](#36-technical-components-custom-end-effector) to determine whether a block is removable. Further detail about how this is implemented is shown in the [state machine diagram](#state-machine-diagram).
 
 ---
 
