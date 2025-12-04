@@ -207,17 +207,10 @@ Markers are also output to the `/vision/markers` topic in the `MarkerArray` mess
 
 # 3.3. Technical Components: Brain node
 
-
-Overview  
 The Brain node is the central coordinator that links perception, motion, safety, and the human player into an autonomous Jenga-playing system.. It takes in the tower state from the vision pipeline, selects safe blocks, issues the push, pick and place manipulation goals, monitors gripper force to mark immovable blocks and trigger safety stops, and manages turn-taking with the user interface. 
 
-Behavior and main loop
-- Alternates between:
-  - Player turn: publishes `Bool(data=false)` on `/ui/robot_turn` and blocks until `/ui/player_done` receives `True`.
-  - Robot turn: publishes `Bool(data=true)` on `/ui/robot_turn`, selects a candidate block, and executes the push→pull→place→approach cycle. On success it returns to the waiting pose (`WAITING_POS = "block72b"`) and hands control back to the player. Non-recoverable errors during pull/place abort the loop and release the UI.
-
-Block selection
-- Reads the latest `Tower` message under a mutex. Tower format:
+## Block selection Algorithm
+- Reads the latest `Tower` message (described above).
 - Builds a per-row occupancy model (left/centre/right).
 - Maintains `_immovable_blocks` set of (row_num, pos) marked after excessive force triggers.
 - Block selection strategy (`get_next_blocks()`):
@@ -230,6 +223,10 @@ Block selection
 - When a block is chosen, construct TF names:
   - `push_tf = "block{row_num}{pos}b"`
   - `pull_tf = "block{row_num}{pos}f"`
+
+<div align="center">
+  <img src="image/BlockAlgorithm.png" alt="BlockAlgorithm" width="600"/>
+</div>
 
 Placement logic
 - Inspect top row occupancy:
