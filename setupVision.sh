@@ -7,14 +7,6 @@ gnome-terminal --tab -t "Static Camera" -e 'ros2 run tf2_ros static_transform_pu
 
 gnome-terminal --tab -t "Real Tower" -e './real_tower.sh'
 
-gnome-terminal --tab -t "Calibration" -e './setup_calibration_point.sh'
-
 sleep 5
 
 gnome-terminal --tab -t "Object Detection" -e 'ros2 run object_detect object_detect'
-
-echo "Vison setup, position end effector next to block42b and press enter to generate correct static transform"
-read -p "Press Enter to continue..."
-
-gnome-terminal --tab -t "Camera Calibration" -e 'ros2 run object_detect camera_calibration'
-

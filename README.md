@@ -569,14 +569,9 @@ source ~/jenga_ws/install/setup.bash
 
 # 5. Running the System
 
-### Step 1: Calibration
+### Step 1: Startup Script
 
-TODO THOMAS
-- double check the list of tabs in Step 2, not sure if you move any of it to the calibration script 
-
-### Step 2: Startup Script
-
-Once calibrated, run the following script from within the `/jenga_bot` directory:
+Run the following script from within the `/jenga_bot` directory:
 
 ```
 ./setupRealur5e
@@ -603,12 +598,31 @@ The robot is now ready! Interact with it via the UI.
 
 NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This script was used for testing and hence, it will only run nodes necessary for manipulation - it will not run computer vision. 
 
+### Step 2: Calibration
+
+After setting up the robot, the camera transformation needs to calibrated.
+
+First, move the robot arm so the end effector is positioned just before the touching point if it was doing a push move for block at row 4 position 2 on the side of the tower which is closest to the base of the UR5E. When doing this do not use free move, rather use the manual move controls as it is important that the final link in the robot remains vertical for the calibration process to work.
+
+Next, run the following script from within the `/jenga_bot` directory:
+
+```
+./calibrate.sh
+```
+
+This script will create a tranformation for that specific block and then run the camera calibration node to find the transformation between the camera and the base link.
+
+Copy the tranformation static publisher that was created and run it in a new terminal tab after ending the exisitng base_link to camera_link transformation publisher.
+
+The robot is now calibrated you should see the tower lining up with the end effector in rviz.
+
 ### Troubleshooting
 
 - After running `./setupRealur5e`, it is recommended to manually open/close the end effector via the UI. This ensures that the end_eff_link is running and communicating with the Arduino correctly. 
   - If the end effector does not respond, restarting the Arduino generally fixes this.
 - If the robot does not move when expected, stop and restart the `ros` script from the UR5e teach pendent.
 - If movement suddenly stops, it is likely that the UR5e joint limits would be exceeded by moving to the next position. Move the jenga tower into a more suitable location and restart the robot.
+- If the object detection node does not output show an image dialog box, it is likely that this node will need to be restarted. This can be done by running the following command in a new terminal tab: `ros2 run object_detect object_detect`
 
 ---
 
