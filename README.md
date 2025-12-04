@@ -225,28 +225,27 @@ The Brain node is the central coordinator that links perception, motion, safety,
   - `pull_tf = "block{row_num}{pos}f"`
 
 <div align="center">
-  <img src="image/BlockAlgorithm.png" alt="BlockAlgorithm" width="600"/>
+  <img src="image/BlockAlgorithm.png" alt="BlockAlgorithm" width="500"/>
 </div>
 
-Placement logic
-- Inspect top row occupancy:
-  - If top row full → place on new row above, centre back: `(place_row = top_row + 1, place_pos = 2)`.
-  - Else place into the first gap on the current top row, preferring centre → left → right.
+- Placement logic
+  - If top row full → place on new row above starting from the centre then the left side.
+  - Else place into the first gap on the current top row.
 - `place_tf = "block{place_row}{place_pos}f"`
 
-Manipulation sequence
+## Manipulation sequence
 - For each robot turn the node sends these actions to the manipulation action server:
   1. `("push_move", push_tf)`
   2. `("pull_move", pull_tf)`
   3. `("place_move", place_tf)`
   4. `("approach_move", WAITING_POS)`
-- During `push_move` the node enables force checking (`_force_check_enabled = True`) and records `_current_push_block`. If a force stop occurs during push, that block is added to `_immovable_blocks` and the node selects another candidate.
+- During `push_move`, if a force stop occurs during push, that block is added to `_immovable_blocks` and the node selects another candidate.
 - Goals are sent with an async action client; the node synchronously waits for completion using threading events.
 - Rejected goals or failures:
   - During `push_move`: mark attempt unsuccessful and retry with another block.
   - During `pull_move` or `place_move`: treat as non-recoverable, log error, set `/ui/robot_turn = False`, and exit loop.
 
-Force monitoring and safety
+## Force monitoring and safety
 - Subscribes to `/prongs/force_g` (`std_msgs/Float32`).
 - Configurable parameter `threshold_g` (default `50.0` g).
 - On force callback:
@@ -255,23 +254,17 @@ Force monitoring and safety
     - If `_current_push_block` set, add it to `_immovable_blocks`.
 - This integrates physical feedback into strategic decisions by avoiding immovable blocks.
 
-Automatic prong closing
-- A short-period timer `_try_close_prongs()` checks for subscribers to `/prongs/mode` (the serial bridge).
-- On detection it publishes `"cf"` once on `/prongs/mode` to close the gripper fully.
-
-Build instructions
+## Usage
 ```
 cd ~/jenga_ws
 colcon build --packages-select brain_node
 source install/setup.bash
 ```
-
-How to run
 ```
 ros2 launch brain_node brain.launch.py
 ```
 
-Topics and action interface
+## Topics and action interface
 
 Subscriptions
 - `/vision/tower` — `tower_interfaces/msg/Tower` — tower occupancy.
@@ -288,8 +281,6 @@ Actions
 
 Runtime behavior:
 - On startup the node logs it is watching `/prongs/force_g` and waits for `/manipulation_action`.
-- Closes prongs when `/prongs/mode` subscriber appears.
-- Publishes `/ui/robot_turn = False` and waits for `/ui/player_done`.
 - On player trigger: switches to robot turn, selects block, executes the four-step sequence, returns to `WAITING_POS`, sets `/ui/robot_turn = False`, and waits for next signal.
 - If force exceeds `threshold_g` during push: a warning is logged, `/safety/stop` pulses `True`, and the block is added to immovable set.
 
