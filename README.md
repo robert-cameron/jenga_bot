@@ -142,6 +142,8 @@ TowerRow[] rows
 
 - rows: An array of `TowerRow` objects, each representing a row of blocks in the tower.
 
+---
+
 ### `TowerRow`
 
 ```
