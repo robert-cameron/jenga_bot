@@ -578,25 +578,25 @@ NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This scrip
 # 6. Results and Demonstration
 ## 6.1 Demonstration
 
+The main feature of our closed-loop system is the ability to push, pull and place detected blocks. 
+
 ### Block Pick
-<img src="image/PickBlock.gif" width="500"/>
+<img src="image/PushBlock.gif" width="300"/>
 
 ### Block Pull
-<img src="image/PullBlock.gif" width="500"/>
+<img src="image/PullBlock.gif" width="300"/>
 
 ### Block Placement
-<img src="image/PlaceBlock.gif" width="500"/>
+<img src="image/PlaceBlock.gif" width="300"/>
 
-### Full Autonomous Turn (MP4)
+### Full Autonomous Turn
 <video width="600" controls>
   <source src="videos/full_run.mp4" type="video/mp4">
 </video>
 
 ### Full Autonomous Turn
-<video width="600" controls>
-  <source src="videos/full_run.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+
+[Watch the full autonomous run on YouTube](https://youtu.be/ButhJ49mhdo)
 
 
 ## 6.2 Quantitative Evaluation
