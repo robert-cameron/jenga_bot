@@ -142,6 +142,8 @@ TowerRow[] rows
 
 - rows: An array of `TowerRow` objects, each representing a row of blocks in the tower.
 
+---
+
 ### `TowerRow`
 
 ```
@@ -154,6 +156,7 @@ bool pos3
 - pos2: True if the second block in the row is occupied.
 - pos3: True if the third block in the row is occupied.
 
+---
 
 # 3.1. Technical Components: Manipulation
 
