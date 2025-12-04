@@ -581,18 +581,27 @@ NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This scrip
 The main feature of our closed-loop system is the ability to push, pull and place detected blocks. 
 
 ### Block Pick
-<img src="image/PushBlock.gif" width="300"/>
+<table>
+  <tr>
+    <td align="center">
+      <img src="image/PushBlock.gif" width="250"/><br/>
+      <b>Block Pick</b>
+    </td>
+    <td align="center">
+      <img src="image/PullBlock.gif" width="250"/><br/>
+      <b>Block Pull</b>
+    </td>
+    <td align="center">
+      <img src="image/PlaceBlock.gif" width="250"/><br/>
+      <b>Block Placement</b>
+    </td>
+  </tr>
+</table>
 
-### Block Pull
-<img src="image/PullBlock.gif" width="300"/>
 
-### Block Placement
-<img src="image/PlaceBlock.gif" width="300"/>
+### Full Demonstration
 
-### Full Autonomous Turn
-
-[![Full Autonomous Run](/image/jengabot.jpg)](https://youtu.be/ButhJ49mhdo)
-
+[Watch the full autonomous run on YouTube](https://youtu.be/ButhJ49mhdo)
 
 
 ## 6.2 Quantitative Evaluation
