@@ -637,15 +637,15 @@ Setup a jenga tower on the Jenga base plate and then press the start turn button
 <table>
   <tr>
     <td align="center">
-      <img src="image/PushBlock.png" width="250"/><br/>
+      <img src="image/PushBlock.gif" width="250"/><br/>
       <b>Block Pick</b>
     </td>
     <td align="center">
-      <img src="image/PullBlock.png" width="250"/><br/>
+      <img src="image/PullBlock.gif" width="250"/><br/>
       <b>Block Pull</b>
     </td>
     <td align="center">
-      <img src="image/PlaceBlock.png" width="250"/><br/>
+      <img src="image/PlaceBlock.gif" width="250"/><br/>
       <b>Block Placement</b>
     </td>
   </tr>
