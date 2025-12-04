@@ -266,17 +266,17 @@ ros2 launch brain_node brain.launch.py
 
 ## Topics and action interface
 
-Subscriptions
+**Subscriptions**
 - `/vision/tower` — `tower_interfaces/msg/Tower` — tower occupancy.
 - `/prongs/force_g` — `std_msgs/msg/Float32` — gripper force (g).
 - `/ui/player_done` — `std_msgs/msg/Bool` — player signals done.
 
-Publications
+**Publications**
 - `/safety/stop` — `std_msgs/msg/Bool` — emits `True` when force exceeds threshold (ESTOP pulse).
 - `/prongs/mode` — `std_msgs/msg/String` — sends `"cf"` once at startup to close prongs.
 - `/ui/robot_turn` — `std_msgs/msg/Bool` — `True` while robot is executing moves; `False` during player turn.
 
-Actions
+**Actions**
 - `/manipulation_action` — `manipulation/action/Manipulation` — request `push_move`, `pull_move`, `place_move`, `approach_move` using named TF frames (e.g., `block72b`).
 
 Runtime behavior:
@@ -285,27 +285,65 @@ Runtime behavior:
 - If force exceeds `threshold_g` during push: a warning is logged, `/safety/stop` pulses `True`, and the block is added to immovable set.
 
 # 3.4. Technical Components: UI Node
+The UI node provides a simple graphical interface (Tkinter-based) that allows a human player to interact with the robot during the Jenga game. It is responsible for:
 
-## Overview
+- Coordinating turn-taking between the robot and the human.
+- Allowing manual testing of the gripper modes.
+- Displaying live force readings from the end-effector.
 
-ui_node provides a minimal terminal-based interface for human control. It reads keyboard input and publishes high-level commands to the robot during testing and gameplay.
+The node runs a ROS 2 node in a background thread while Tkinter handles the GUI in the main thread.
 
-## Keyboard Mapping
+- Displays a "Start / Next Move" button.
+- When pressed, publishes True on /ui/player_done.
+- Button is automatically disabled during robot motion.
+- Shows live force readings from /prongs/force_g:
+  - Green if below threshold (e.g., < 50 g)
+  - Red if above threshold
 
-| Key      | Published Topic   | Message           | Description                         |
-|----------|-------------------|-------------------|-------------------------------------|
-| SPACE    | /ui/player_done   | Bool(data=True)   | Starts or signals robot turn        |
-| O / o    | /prongs/cmd       | "open"            | Opens gripper                       |
-| G / g    | /prongs/cmd       | "close"           | Closes gripper                      |
-| F / f    | /prongs/cmd       | "force"           | Requests force reading              |
-| Q / q    | (none)            | (none)            | Quits UI node                       |
+Contains three gripper mode buttons:
+- `o` -> open
+- `cp` -> grip block
+- `cf` -> close fully
+
+These modes are published on `/prongs/mode`.
+
+Subscribes to `/ui/robot_turn` to know when the robot is moving:
+- True -> disables the Start button and shows "Robot is moving…"
+- False -> enables the Start button and shows "Your turn…"
+
+<div align="center">
+  <img src="image/window2.png" alt="UI" width="500"/>
+</div>
+
+## Usage
+
+```bash
+cd ~/ros2_ws
+colcon build --packages-select ui_node
+source install/setup.bash
+```
+
+```bash
+ros2 run ui_node player_gui
+```
 
 ## Topics
 
-| Direction | Topic            | Type             | Description                          |
-|-----------|------------------|------------------|--------------------------------------|
-| Publishes | /ui/player_done  | std_msgs/Bool    | Player "start" signal                |
-| Publishes | /prongs/cmd      | std_msgs/String  | Manual end-effector commands         |
+**Subscriptions**
+
+| Topic | Type | Description |
+|-------|-------|-------------|
+| `/ui/robot_turn` | `std_msgs/msg/Bool` | Controls enabling/disabling of the Start button. |
+| `/prongs/force_g` | `std_msgs/msg/Float32` | Displays live force reading from the gripper. |
+
+**Publications**
+
+| Topic | Type | Description |
+|-------|-------|-------------|
+| `/ui/player_done` | `std_msgs/msg/Bool` | Indicates the human is ready for the robot to proceed. |
+| `/prongs/mode` | `std_msgs/msg/String` | Sends open (`"o"`), grip (`"cp"`), or close (`"cf"`) commands. |
+
+
 
 ---
 
