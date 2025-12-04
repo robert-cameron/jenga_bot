@@ -453,7 +453,7 @@ Adjusted the orientation of the mount to better align with the kinematics code, 
 
 The robot features two simultaneous windows used for system visualisation:
   1. A custom UI,
-  2. RVIZ
+  2. RViz
 
 The custom UI indicates the state of the game, i.e. whether it is the User's or Robot's turn to remove a block.
 
@@ -463,7 +463,7 @@ When the 'Start / Next Move' button is clickable, the user is free to take their
   <img src="image/window2.png" alt="window2" width="300"/>
 </div>
 
-RVIZ displays the state, position and orientation of each block in the tower, based on output from the `object_detect` node. The UR5e and attached end effector is displayed, indicative of all current joint positions and orientations. 
+RViz displays the state, position and orientation of each block in the tower, based on output from the `object_detect` node. The UR5e and attached end effector is displayed, indicative of all current joint positions and orientations. 
 
 <div align="center">
   <img src="image/window1.png" alt="window1" width="300"/>
@@ -479,7 +479,7 @@ RVIZ displays the state, position and orientation of each block in the tower, ba
 - ROS 2: Humble 
 - Build tools: `colcon`, `python3-colcon-common-extensions`, `git`  
 - UR stack: `ur_robot_driver`, `ros2_control`, MoveIt 2  
-- Tools: `rviz2`, `tf2_ros`  
+- Tools: `RViz2`, `tf2_ros`  
 
 Follow the official ROS 2 Humble install guide, then install the UR driver and MoveIt packages on the same machine that will run the JengaBot stack.
 
@@ -592,7 +592,7 @@ This script will `colcon build` the solution and open the following tabs in the 
 - RealTower
 - ObjectDetection
 
-Wait up to 30 seconds for the nodes to start up. The UI and RVIZ will launch automatically when this script is run.
+Wait up to 30 seconds for the nodes to start up. The UI and RViz will launch automatically when this script is run.
 
 Once all nodes have started, run the `ros` script from the UR5e teach pendent.
 
@@ -604,7 +604,7 @@ NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This scrip
 
 After setting up the robot, the camera transformation needs to calibrated.
 
-First, move the robot arm so the end effector is positioned just before the touching point if it was doing a push move for block at row 4 position 2 on the side of the tower which is closest to the base of the UR5E. When doing this do not use free move, rather use the manual move controls as it is important that the final link in the robot remains vertical for the calibration process to work.
+First, move the robot arm so that the end effector is just touching the middle block in row 4, on the side of the tower which is closest to the base of the UR5e. When doing this, do not use free move, rather use the manual move controls as it is important that the final link in the robot remains vertical for the calibration process to work.
 
 Next, run the following script from within the `/jenga_bot` directory:
 
@@ -616,7 +616,7 @@ This script will create a tranformation for that specific block and then run the
 
 Copy the tranformation static publisher that was created and run it in a new terminal tab after ending the exisitng base_link to camera_link transformation publisher.
 
-The robot is now calibrated you should see the tower lining up with the end effector in rviz.
+The robot is now calibrated! The location of the tower in RViz should now match its real world position.
 
 ### Step 3: Play Jenga
 
@@ -627,7 +627,7 @@ Setup a jenga tower on the Jenga base plate and then press the start turn button
 - After running `./setupRealur5e`, it is recommended to manually open/close the end effector via the UI. This ensures that the end_eff_link is running and communicating with the Arduino correctly. 
   - If the end effector does not respond, restarting the Arduino generally fixes this.
 - If the robot does not move when expected, stop and restart the `ros` script from the UR5e teach pendent.
-- If movement suddenly stops, it is likely that the UR5e joint limits would be exceeded by moving to the next position. Move the jenga tower into a more suitable location and restart the robot.
+- If movement suddenly stops, it is likely that the UR5e joint limits would be exceeded by moving to the next position. Move the jenga tower into a more suitable location and restart the robot with `./setupRealur5e`.
 - If the object detection node does not output show an image dialog box, it is likely that this node will need to be restarted. This can be done by running the following command in a new terminal tab: `ros2 run object_detect object_detect`
 
 ---
