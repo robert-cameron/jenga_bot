@@ -52,7 +52,6 @@ The robot is designed to provide interactive companionship and stimulating activ
 ## Solution - JengaBot
 JengaBot is a robot that playes Jenga against a human player, this means the robot is able to find a block that is easy to remove, push it half way out, then pull and grasp it as it fully removes it from the tower before moving and placing the block on the top of the tower. The robot uses [computer vision](#32-technical-components-computer-vision) to find the location of the tower and the blocks that are in the tower. Further it uses a customer [force sensor](#36-technical-components-custom-end-effector) to determine whether a block can be pushed. The robot uses [manipulation](#33-technical-components-brain-node) to execute push-pull-place actions. Bringing this together is the [brain node](#33-technical-components-brain-node), which is able to coordinate a closed loop turn of the JengaBot.
 
-
 ## Video
 [Insert the video here]
 
@@ -97,7 +96,7 @@ The brain node dictates the central logic, decision-making and sequencing. It co
 
 ### `object_detect`
 
-The object_detect node uses computer vision to determine the location of the tower. It also determines which blocks are in the tower. 
+The object_detect node uses computer vision to determine the location of the tower. It also determines which blocks are in the tower. See [computer vision](#32-technical-components-computer-vision) for more details.
 
 ### `manipulation`
 
@@ -180,25 +179,31 @@ ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{a
 
 # 3.2. Technical Components: Computer vision
 
-Our vision pipeline is designed to detect and interpret the state of blocks within a tower structure using a depth camera and ArUco markers. The system subscribes to both RGB and depth image topics, processes them with OpenCV, and integrates the results into ROS2 for downstream robotic control.
+Our vision pipeline is designed to detect and locate the Jenga tower aswell as determining the state of blocks within a tower structure. The system subscribes to the RGB image topic, processes it with OpenCV, and outputs the results using ROS2 for use in the closed loop control.
 
 <div align="center">
   <img src="image/ComputerVision.png" alt="ComputerVision" width="600"/>
 </div>
 
-The pipeline begins with **image acquisition**, where RGB and aligned depth frames are captured. Using the `cv_bridge`, these frames are converted into OpenCV images for further processing. ArUco markers are detected to establish reference frames and orientations. Once markers are identified, the system computes transformations and broadcasts them via TF, ensuring that the robot has a consistent world model.
+The pipeline begins with detectinng the tower using aruco markers, there is an aruco marker located on each side of the tower, two markers will always be visible to the camera, the locations of these markers are determined using solvePNP from the corners of the markers and the known dimensions of the marker. The actual location of the tower is interpolated at the perpendicular intersection point of the two visible markers. Once the location of the tower is determined, the system computes transformations and broadcasts them via TF, ensuring that the robot knows the location of the tower and the blocks that are in the tower.
 
-A critical part of the pipeline is **block detection and clustering**. Green regions are segmented in HSV color space, contours are extracted, and positions are mapped into global coordinates. K-means and hierarchical clustering are applied to group blocks by horizontal and vertical positions, reconstructing the tower’s occupancy state. This information is published as `PoseArray`, `MarkerArray`, and custom `Tower` messages, enabling the robot to reason about which blocks can be pushed and how the tower is structured.
+Following finding the location of the tower, the system begins to detect the blocks that are in the tower. Organge rectangles which are glued to the end of each block in the tower, these are detected with a HSV color mask and contours are extracted. 
 
-Key code excerpt for marker pose estimation:
-```python
-success, rvec, tvec = cv2.solvePnP(obj_points, img_points, cameraMatrix, distCoeffs)
-if success:
-    rvecs.append(rvec)
-    tvecs.append(tvec)
+To determine the block that relates to each contour the x and y coordinates (in the image) are compared to the closest corner of the tower and are then grouped into their respctive level group and horizontal position group (as coloured in the image above) using K-means and hierarchical clustering. This data is then used to populate a occupancy message which is published to the `/vision/tower` topic in the custom `Tower` message format.
 
 ```
----
+# Tower.msg
+TowerRow[] rows
+```
+
+```
+# TowerRow.msg
+bool pos1
+bool pos2
+bool pos3
+```
+
+Markers are also outputted to the `/vision/markers` topic in the `MarkerArray` message format for the visualisation of the blocks in RViz.
 
 
 # 3.3. Technical Components: Brain node
