@@ -591,9 +591,8 @@ The main feature of our closed-loop system is the ability to push, pull and plac
 
 ### Full Autonomous Turn
 
-<div align="center">
-  <iframe width="600" height="338" src="https://www.youtube.com/embed/ButhJ49mhdo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-</div>
+[![Full Autonomous Run](https://img.youtube.com/vi/ButhJ49mhdo/maxresdefault.jpg)](https://youtu.be/ButhJ49mhdo)
+
 
 
 ## 6.2 Quantitative Evaluation
