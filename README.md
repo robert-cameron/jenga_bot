@@ -28,7 +28,7 @@
 
 ---
 
-# 1. Background and Customers
+# 1. Project Overview
 
 ## Background and Problem Context  
 Over 40% of children spend significant hours alone at home each week, often without meaningful interaction. This isolation leads many to rely heavily on screens, which can reduce focus, hinder social development, and negatively affect emotional well‑being. Parents are increasingly concerned about finding safe and engaging alternatives that can keep their children stimulated while also supporting healthy growth.  
@@ -43,7 +43,7 @@ The robot is designed to provide interactive companionship and stimulating activ
 
 ---
 
-# 2. System Structure (Node Graph)
+# 2. System Architecture
 
 <div align="center">
   <img src="image/structure.png" alt="structure" width="1000"/>
@@ -94,7 +94,45 @@ It identifies safe blocks, executes push-pull-place actions, and interacts with 
 
 ---
 
-# 3. Technical Components: Computer vision
+# 3.1 Technical Components: Manipulation
+
+The **Manipulation Node** is responsible for executing robot arm actions using ROS 2, MoveIt, and TF2.  
+It provides an **action server** (`manipulation_action`) that accepts goals specifying either a target pose or a TF frame.  
+Based on the requested `action_type`, the node dispatches to specialized action classes such as **PushMoveAction**, **PullMoveAction**, **PlaceMoveAction**, **FreeMoveAction**, **LinearMoveAction**, and **ApproachMoveAction**.  
+
+Some actions use other actions within them. For example, a **PullMoveAction** constists of an **ApproachMoveAction**, and a sequence of other **LinearMoveAction**s. 
+
+The `brain` node calls these actions based on its decicion making algorithm.
+
+Actions can also be initiated directly from the terminal by specifying either a pose or tf:
+
+```
+# send end effector to a specified position
+ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{action_type: 'linear_move', pose: {position: {x: 0.45, y: 0.45, z: 0.275}, orientation: {x: 0.0, y: 0.0, z: -0.382683, w: 0.923880}}}"
+
+# send end effector to the tf named 'block 23f'
+ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{action_type: 'linear_move', tf: 'block23f'}"
+
+# execute a push move on the block at the tf named 'block 23f'
+ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{action_type: 'push_move', tf: 'block23f'}"
+```
+
+The node integrates with MoveIt’s **MoveGroupInterface** to plan and execute trajectories.  
+It also sets up **collision objects** (walls, table, ceiling) in the planning scene to ensure safe motion planning.  
+Orientation and joint constraints can be applied to enforce specific end-effector orientations or joint limits.  
+The node continuously monitors goals, supports cancellation, and reports success or failure back to the client.
+
+### Key Features
+- **Action server** for manipulation goals (`manipulation_action`).
+- **Multiple action types**: push, pull, place, free, constrained, linear, approach.
+- **Safety stopping**: movements stop instantly if force sensor sets /safety/stop to true.
+- **TF integration**: transforms target poses from TF frames into world coordinates.
+- **Collision-aware planning**: adds walls, table, and ceiling to the planning scene.
+- **Constraints**: orientation and joint constraints for safe and precise motion.
+
+---
+
+# 3.2 Technical Components: Computer vision
 
 Our vision pipeline is designed to detect and interpret the state of blocks within a tower structure using a depth camera and ArUco markers. The system subscribes to both RGB and depth image topics, processes them with OpenCV, and integrates the results into ROS2 for downstream robotic control.
 
@@ -117,59 +155,7 @@ if success:
 ---
 
 
-# 4. Technical Components: Manipulation
-
-The **Manipulation Node** is responsible for executing robot arm actions using ROS 2, MoveIt, and TF2.  
-It provides an **action server** (`manipulation_action`) that accepts goals specifying either a target pose or a TF frame.  
-Based on the requested `action_type`, the node dispatches to specialized action classes such as **PushMoveAction**, **PullMoveAction**, **PlaceMoveAction**, **FreeMoveAction**, **LinearMoveAction**, and **ApproachMoveAction**.  
-
-The node integrates with MoveIt’s **MoveGroupInterface** to plan and execute trajectories.  
-It also sets up **collision objects** (walls, table, ceiling) in the planning scene to ensure safe motion planning.  
-Orientation and joint constraints can be applied to enforce specific end-effector orientations or joint limits.  
-The node continuously monitors goals, supports cancellation, and reports success or failure back to the client.
-
-### Key Features
-- **Action server** for manipulation goals (`manipulation_action`).
-- **Multiple action types**: push, pull, place, free, constrained, linear, approach.
-- **TF integration**: transforms target poses from TF frames into world coordinates.
-- **Collision-aware planning**: adds walls, table, and ceiling to the planning scene.
-- **Constraints**: orientation and joint constraints for safe and precise motion.
-
-### Code Excerpts
-
-**Action server creation:**
-```cpp
-action_server_ = rclcpp_action::create_server<Manipulation>(
-    this,
-    "manipulation_action",
-    std::bind(&ManipulationNode::handle_goal, this, std::placeholders::_1, std::placeholders::_2),
-    std::bind(&ManipulationNode::handle_cancel, this, std::placeholders::_1),
-    std::bind(&ManipulationNode::handle_accepted, this, std::placeholders::_1));
-```
-**Dispatching actions:**
-```cpp
-if (goal->action_type == "push_move") {
-  action = std::make_unique<PushMoveAction>(shared_from_this(), getEndEffectorPose());
-} else if (goal->action_type == "pull_move") {
-  action = std::make_unique<PullMoveAction>(shared_from_this(), getEndEffectorPose());
-} else if (goal->action_type == "place_move") {
-  action = std::make_unique<PlaceMoveAction>(shared_from_this(), getEndEffectorPose());
-} else if (goal->action_type == "free_move") {
-  action = std::make_unique<FreeMoveAction>();
-}
-```
-**Collision object setup:**
-```cpp
-planning_scene_interface.applyCollisionObject(
-    generateCollisionObject(2.4, 0.04, 1.0, 0.85, -0.30, 0.5, frame_id, "backWall"));
-planning_scene_interface.applyCollisionObject(
-    generateCollisionObject(0.04, 1.2, 1.0, -0.30, 0.25, 0.5, frame_id, "sideWall"));
-
-```
----
-
-
-# 5. Technical Components: Brain node
+# 3.3 Technical Components: Brain node
 
 ## Overview
 
@@ -223,7 +209,7 @@ If you need the node to reset automatically, check the node parameters for a hys
 ---
 
 
-# 6. Technical Components: UI Node
+# 3.4 Technical Components: UI Node
 
 ## Overview
 
@@ -248,24 +234,12 @@ ui_node provides a minimal terminal-based interface for human control. It reads 
 
 ---
 
+# 3.5 Technical Components: Closed Loop operation
 
-# 7. Technical Components: System Visualisation
 
-The robot features two simultaneous user interaction windows. 
+---
 
-The first window displays the state and posture of each block, indicating whether a block can be pushed and showing their relative positions. 
-
-<div align="center">
-  <img src="image/window1.png" alt="window1" width="300"/>
-</div>
-
-The second window enables basic operations and consolidates input and output states into a single interface, rather than presenting them as tedious, line‑by‑line terminal code. 
-
-<div align="center">
-  <img src="image/window2.png" alt="window2" width="300"/>
-</div>
-
-# 8. Technical Components: Customized End-Effector 
+# 3.6 Technical Components: Custom End-Effector 
 
 ## Features
 
@@ -329,7 +303,26 @@ Here's the photo of actual end effector:
 </div>
 
 ---
-## Installation and setup
+
+# 3.5 Technical Components: System Visualisation
+
+The robot features two simultaneous user interaction windows. 
+
+The first window displays the state and posture of each block, indicating whether a block can be pushed and showing their relative positions. 
+
+<div align="center">
+  <img src="image/window1.png" alt="window1" width="300"/>
+</div>
+
+The second window enables basic operations and consolidates input and output states into a single interface, rather than presenting them as tedious, line‑by‑line terminal code. 
+
+<div align="center">
+  <img src="image/window2.png" alt="window2" width="300"/>
+</div>
+
+--- 
+
+# 4. Installation and setup
 
 1. Prerequisites
 - OS: Ubuntu 22.04  
@@ -412,9 +405,8 @@ source ~/jenga_ws/install/setup.bash
 - Force threshold parameter on the brain node defaults to 50.0 g. 
 - Hand–eye calibration: ensure TF connectivity between UR5e base, table/world, and tower frames. No calibration code is required in this repo if TFs are published correctly.
 
----
 
-# 9. Running the System
+# 5. Running the System
 - **Launch Instructions**: Provide a single command to start the system.  
 - **Example Commands**: e.g. `ros2 launch project_name bringup.launch.py`.  
 - **Expected Behavior**: Describe what the user should see.  
@@ -422,7 +414,7 @@ source ~/jenga_ws/install/setup.bash
 
 ---
 
-# 10. Results and Discussion
+# 6. Results and Demonstration
 - **Performance**: How the system meets design goals.  
 - **Quantitative Results**: Accuracy, repeatability, robustness.  
 - **Demonstration Media**: Photos, figures, or videos of operation.  
@@ -430,12 +422,23 @@ source ~/jenga_ws/install/setup.bash
 
 ---
 
-# 11. Contributors and Roles
-- **Robert Cameron** — 
-- **Thomas Crundwell** —  
-- **Akhil Govan** —
-- **Haoran Wen** — End effector
+# 7. Discussion and Future Work
 
 ---
 
-# 12. References
+# 8. Contributors and Roles
+- **Robert Cameron** - Manipulation
+- **Thomas Crundwell** - Vision
+- **Akhil Govan** - Brain
+- **Haoran Wen** - End effector
+
+---
+
+# 9. Repo structure
+
+
+---
+
+# 10. References
+
+---
