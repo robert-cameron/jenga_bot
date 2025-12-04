@@ -580,9 +580,7 @@ NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This scrip
 # 6. Results and Demonstration
 ## 6.1 Demonstration
 
-The main feature of our closed-loop system is the ability to push, pull and place detected blocks. 
-
-### Block Pick
+### Block Manipulation
 <table>
   <tr>
     <td align="center">
@@ -614,8 +612,10 @@ From the system requirements set out at the beginning of the project, we were ab
 | **Game Play** | Able to remove blocks and replace on top of tower | Reliably probed, pushed, pulled and placed blocks on top of tower |
 | **Speed** | Turn completed inside 2 minutes | Complete turn takes 1 min 32 seconds on average |
 | **Repeatability** | Able to take 2+ consecutive turns | Reliably can take atleast 3 turns without fail |
-| **Robustness** | Adjusts to major changes in tower position | System can handle 180° rotations, repositioning of the tower, and removal of blocks from the tower at any stage of gameplay. |
+| **Robustness** | Adjusts to major changes in tower position | System can handle rotations of any degree, repositioning of the tower, and removal of blocks from the tower at any stage of gameplay. |
 | **Accuracy** | Block placement alignment within 1 cm | Probes reach the centre of the block within a 5mm tolerance and can safely pick up blocks with a 2 cm offset, where it then places the block on the top within a 5mm tolerance |
+| **Block Detection Accuracy** | Correctly detect ≥ 90% of blocks per frame | Correctly detects 100% of blocks in the tower |
+| **Force Stop Trigger Latency** | Trigger within ≤ 100 ms of crossing force threshold | Median trigger latency of 62 ms from threshold crossing |
 
 ---
 
