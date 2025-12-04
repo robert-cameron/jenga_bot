@@ -347,19 +347,24 @@ Here's the photo of actual end effector:
 
 # 3.7. Technical Components: System Visualisation
 
-The robot features two simultaneous user interaction windows. 
+The robot features two simultaneous windows used for system visualisation:
+  1. A custom UI,
+  2. RVIZ
 
-The first window displays the state and posture of each block, indicating whether a block can be pushed and showing their relative positions. 
+The custom UI indicates the state of the game, i.e. whether it is the User's or Robot's turn to remove a block.
+
+When the 'Start / Next Move' button is clickable, the user is free to take their turn. When it is greyed out, the robot is taking its turn.
+
+<div align="center">
+  <img src="image/window2.png" alt="window2" width="300"/>
+</div>
+
+RVIZ displays the state, position and orientation of each block in the tower, based on output from the `object_detect` node. The UR5e and attached end effector is displayed, indicative of all current joint positions and orientations. 
 
 <div align="center">
   <img src="image/window1.png" alt="window1" width="300"/>
 </div>
 
-The second window enables basic operations and consolidates input and output states into a single interface, rather than presenting them as tedious, line‑by‑line terminal code. 
-
-<div align="center">
-  <img src="image/window2.png" alt="window2" width="300"/>
-</div>
 
 --- 
 
