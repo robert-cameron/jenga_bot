@@ -73,7 +73,7 @@ A full System Architecture diagram is shown below, detailing the implemented ROS
 
 ## State Machine Diagram
 
-A State Machine diagram is shown below, indicating the logical flow of the program. This logic is largely implemented within the `brain` node.
+A State Machine diagram is shown below, indicating the logical flow of the program. This logic is largely implemented within the [brain node](#33-technical-components-brain-node) and implments the [closed loop operation](#35-technical-components-closed-loop-operation).
 
 <div align="center">
   <img src="image/state_diagram.jpeg" alt="structure" width="500"/>
@@ -133,6 +133,27 @@ string feedback
 
 ---
 
+### `Tower`
+
+```
+TowerRow[] rows
+```
+
+- rows: An array of `TowerRow` objects, each representing a row of blocks in the tower.
+
+### `TowerRow`
+
+```
+bool pos1
+bool pos2
+bool pos3
+```
+
+- pos1: True if the first block in the row is occupied.
+- pos2: True if the second block in the row is occupied.
+- pos3: True if the third block in the row is occupied.
+
+
 # 3.1. Technical Components: Manipulation
 
 The **Manipulation Node** is responsible for executing robot arm actions using ROS 2, MoveIt, and TF2.  
@@ -191,19 +212,28 @@ Following finding the location of the tower, the system begins to detect the blo
 
 To determine the block that relates to each contour the x and y coordinates (in the image) are compared to the closest corner of the tower and are then grouped into their respctive level group and horizontal position group (as coloured in the image above) using K-means and hierarchical clustering. This data is then used to populate a occupancy message which is published to the `/vision/tower` topic in the custom `Tower` message format.
 
-```
-# Tower.msg
-TowerRow[] rows
-```
-
-```
-# TowerRow.msg
-bool pos1
-bool pos2
-bool pos3
-```
-
 Markers are also outputted to the `/vision/markers` topic in the `MarkerArray` message format for the visualisation of the blocks in RViz.
+
+## Topics
+
+### Subscriptions
+| Topic | Type | Description |
+|---|---:|---|
+| `/camera/camera/color/image_raw` | `sensor_msgs/msg/Image` | Image from the camera |
+| `/camera/camera/aligned_depth_to_color/camera_info` | `sensor_msgs/msg/CameraInfo` | Camera info from the camera |
+
+### Publications
+| Topic | Type | Description |
+|---|---:|---|
+| `/vision/tower` | `tower_messages/msg/Tower` | Tower |
+| `/vision/markers` | `visualization_msgs/msg/MarkerArray` | Markers |
+
+## Usage
+
+Automatically run in the setup sequence, can be run manually using the following command:
+```
+ros2 run object_detect object_detect
+```
 
 
 # 3.3. Technical Components: Brain node
@@ -287,6 +317,11 @@ ui_node provides a minimal terminal-based interface for human control. It reads 
 
 # 3.5. Technical Components: Closed Loop operation
 
+Closed loop operation is achieved by the [brain node](#33-technical-components-brain-node) which is able to coordinate a closed loop turn of the JengaBot.
+
+The closed loop operation takes inputs from the [force sensor](#36-technical-components-custom-end-effector) and the [computer vision](#32-technical-components-computer-vision) to complete aspects of the turn. The outputs then are used to control the robot via the [manipulation](#33-technical-components-brain-node) and the [end effector](#36-technical-components-custom-end-effector) nodes.
+
+This is used to implement the [state machine diagram](#state-machine-diagram) which is used to determine the optimal blocks to remove, and listens to the force sensor to determine whether a block is removable.
 
 ---
 
