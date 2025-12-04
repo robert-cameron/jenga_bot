@@ -4,37 +4,38 @@
   <img src="image/jengabot.jpg" alt="jengabot" width="400"/>
 </div>
 
+[Full Demo](https://youtu.be/ButhJ49mhdo)
+
 ---
 
 # Table of Contents
 
-1. [Project Overview](#1-project-overview)  
+[1. Project Overview](#1-project-overview)  
 
-2. [System Architecture](#2-system-architecture)  
+[2. System Architecture](#2-system-architecture)  
 
-3. [Technical Components](#31-technical-components-manipulation)  
-   3.1. [Manipulation](#31-technical-components-manipulation)  
-   3.2. [Computer Vision](#32-technical-components-computer-vision)  
-   3.3. [Brain Node](#33-technical-components-brain-node)  
-   3.4. [UI Node](#34-technical-components-ui-node)  
-   3.5 [Closed Loop Operation](#35-technical-components-closed-loop-operation)  
-   3.6 [Custom End-Effector](#36-technical-components-custom-end-effector)  
-   3.7 [System Visualisation](#37-technical-components-system-visualisation)
+[3. Technical Components](#31-technical-components-manipulation)  
+- [3.1. Manipulation](#31-technical-components-manipulation)  
+- [3.2. Computer Vision](#32-technical-components-computer-vision)  
+- [3.3. Brain Node](#33-technical-components-brain-node)  
+- [3.4. UI Node](#34-technical-components-ui-node)  
+- [3.5 Closed Loop Operation](#35-technical-components-closed-loop-operation)  
+- [3.6 Custom End-Effector](#36-technical-components-custom-end-effector)  
+- [3.7 System Visualisation](#37-technical-components-system-visualisation)
 
-4. [Installation and Setup](#4-installation-and-setup)  
+[4. Installation and Setup](#4-installation-and-setup)  
 
-5. [Running the System](#5-running-the-system)
+[5. Running the System](#5-running-the-system)
 
-6. [Results and Demonstration](#6-results-and-demonstration)
+[6. Results and Demonstration](#6-results-and-demonstration)
 
-7. [Discussion and Future Work](#7-discussion-and-future-work)
+[7. Discussion and Future Work](#7-discussion-and-future-work)
 
-8. [Contributors and Roles](#8-contributors-and-roles)
+[8. Contributors and Roles](#8-contributors-and-roles)
 
-9. [Repo Structure](#9-repo-structure)
+[9. Repo Structure](#9-repo-structure)
 
-10. [References](#10-references)
-
+[10. References](#10-references)
 
 ---
 
@@ -50,10 +51,10 @@ The primary users are children who need interactive companionship during periods
 The robot is designed to provide interactive companionship and stimulating activities for children, offering a safe and engaging alternative to passive screen time. Fostering attention, creativity, and social interaction helps improve emotional well‑being and developmental outcomes. At the same time, it reassures parents that their children are meaningfully engaged even when alone at home.  
 
 ## Solution - JengaBot
-JengaBot is a robot that playes Jenga against a human player, this means the robot is able to find a block that is easy to remove, push it half way out, then pull and grasp it as it fully removes it from the tower before moving and placing the block on the top of the tower. The robot uses [computer vision](#32-technical-components-computer-vision) to find the location of the tower and the blocks that are in the tower. Further it uses a customer [force sensor](#36-technical-components-custom-end-effector) to determine whether a block can be pushed. The robot uses [manipulation](#33-technical-components-brain-node) to execute push-pull-place actions. Bringing this together is the [brain node](#33-technical-components-brain-node), which is able to coordinate a closed loop turn of the JengaBot.
+JengaBot is a robot that playes Jenga against a human player. The robot is able to find a block that is suitable to remove, push it partially out, then pull and grasp it, removing it from the tower before placing the block on the top of the tower. The robot uses [computer vision](#32-technical-components-computer-vision) to find the location of the tower and the blocks that are in the tower. The robot uses [manipulation](#31-technical-components-manipulation) to execute push-pull-place actions. Further, it uses a custom [force sensor](#36-technical-components-custom-end-effector) to determine whether a block is suitably loose to remove. The [brain node](#33-technical-components-brain-node) combines and executes these components, coordinating an entire closed loop game of the Jenga against the user.
 
 ## Video
-[Insert the video here]
+[Full Demo](https://youtu.be/ButhJ49mhdo)
 
 ---
 
@@ -200,17 +201,17 @@ ros2 action send_goal /manipulation_action manipulation/action/Manipulation  "{a
 
 # 3.2. Technical Components: Computer vision
 
-Our vision pipeline is designed to detect and locate the Jenga tower aswell as determining the state of blocks within a tower structure. The system subscribes to the RGB image topic, processes it with OpenCV, and outputs the results using ROS2 for use in the closed loop control.
+Our vision pipeline is designed to detect and locate the Jenga tower, as well as determine the state of blocks within the tower. The system subscribes to the RGB image topic, processes it with OpenCV, and outputs the results using ROS2 for use in the closed loop control.
 
 <div align="center">
   <img src="image/ComputerVision.png" alt="ComputerVision" width="600"/>
 </div>
 
-The pipeline begins with detectinng the tower using aruco markers, there is an aruco marker located on each side of the tower, two markers will always be visible to the camera, the locations of these markers are determined using solvePNP from the corners of the markers and the known dimensions of the marker. The actual location of the tower is interpolated at the perpendicular intersection point of the two visible markers. Once the location of the tower is determined, the system computes transformations and broadcasts them via TF, ensuring that the robot knows the location of the tower and the blocks that are in the tower.
+The pipeline begins with detecting the tower using ArUco markers. Given that there is an ArUco marker located on each side of the tower, two markers will always be visible to the camera. The locations of these markers are determined using solvePNP from the corners of the markers and the known dimensions of the marker. The actual location of the tower is interpolated at the perpendicular intersection point of the two visible markers. Once the location of the tower is determined, the system computes transformations and broadcasts them via TF, ensuring that the robot knows the location of the tower and the blocks that are in the tower.
 
-Following finding the location of the tower, the system begins to detect the blocks that are in the tower. Organge rectangles which are glued to the end of each block in the tower, these are detected with a HSV color mask and contours are extracted. 
+Following finding the location of the tower, the system begins to detect the blocks that are in the tower. Orange rectangles (which are glued to the end of each block in the tower) are detected with an HSV color mask and contours are extracted. 
 
-To determine the block that relates to each contour the x and y coordinates (in the image) are compared to the closest corner of the tower and are then grouped into their respctive level group and horizontal position group (as coloured in the image above) using K-means and hierarchical clustering. This data is then used to populate a occupancy message which is published to the `/vision/tower` topic in the custom `Tower` message format.
+To determine the block that corresponds to each contour, the x and y coordinates (in the image) are compared to the closest corner of the tower. They are then grouped into their respective level group and horizontal position group (as coloured in the image above) using K-means and hierarchical clustering. This data is then used to populate an occupancy message which is published to the `/vision/tower` topic in the custom `Tower` message format.
 
 Markers are also outputted to the `/vision/markers` topic in the `MarkerArray` message format for the visualisation of the blocks in RViz.
 
@@ -238,80 +239,143 @@ ros2 run object_detect object_detect
 
 # 3.3. Technical Components: Brain node
 
-## Overview
+The Brain node is the central coordinator that links perception, motion, safety, and the human player into an autonomous Jenga-playing system.. It takes in the tower state from the vision pipeline, selects safe blocks, issues the push, pick and place manipulation goals, monitors gripper force to mark immovable blocks and trigger safety stops, and manages turn-taking with the user interface. 
 
-This node monitors gripper force and raises a safety stop when the measured force exceeds a configured threshold.
+## Block selection Algorithm
+- Reads the latest `Tower` message (described above).
+- Builds a per-row occupancy model (left/centre/right).
+- Maintains `_immovable_blocks` set of (row_num, pos) marked after excessive force triggers.
+- Block selection strategy (`get_next_blocks()`):
+  - Scan rows from index 1 upward.
+  - For a row with 3 blocks: prefer centre → left → right, skipping immovables.
+  - For 2 blocks with centre: try side first, then centre.
+  - For 2 side blocks only: normally skip, but allow if centre was previously marked immovable.
+  - Single-block rows are skipped (unstable).
+  - If none found, return empty names and log a warning.
+- When a block is chosen, construct TF names:
+  - `push_tf = "block{row_num}{pos}b"`
+  - `pull_tf = "block{row_num}{pos}f"`
 
-## Behavior
-- Subscribes to `/prongs/force_g` (std_msgs/msg/Float32) — gripper force in grams.  
-- Compares each reading to a configured threshold (default: 80 g).  
-- Publishes `True` on `/safety/stop` (std_msgs/msg/Bool) while the force is above the threshold (ESTOP).  
-- Latches internally:
-  - On the first crossing above the threshold, logs a warning.
-  - Continues publishing `True` while force remains above the threshold.
-  - Optionally resets the latch when force drops below a lower band (for example, 80% of the threshold) if configured.
-- Does not command actuators or interact with MoveIt; it only raises a safety flag.
+<div align="center">
+  <img src="image/BlockAlgorithm.png" alt="BlockAlgorithm" width="500"/>
+</div>
 
-## Build instructions
+- Placement logic
+  - If top row full → place on new row above starting from the centre then the left side.
+  - Else place into the first gap on the current top row.
+- `place_tf = "block{place_row}{place_pos}f"`
 
-From your ROS 2 workspace:
+## Manipulation sequence
+- For each robot turn the node sends these actions to the manipulation action server:
+  1. `("push_move", push_tf)`
+  2. `("pull_move", pull_tf)`
+  3. `("place_move", place_tf)`
+  4. `("approach_move", WAITING_POS)`
+- During `push_move`, if a force stop occurs during push, that block is added to `_immovable_blocks` and the node selects another candidate.
+- Goals are sent with an async action client; the node synchronously waits for completion using threading events.
+- Rejected goals or failures:
+  - During `push_move`: mark attempt unsuccessful and retry with another block.
+  - During `pull_move` or `place_move`: treat as non-recoverable, log error, set `/ui/robot_turn = False`, and exit loop.
+
+## Force monitoring and safety
+- Subscribes to `/prongs/force_g` (`std_msgs/Float32`).
+- Configurable parameter `threshold_g` (default `50.0` g).
+- On force callback:
+  - If reading > `threshold_g`:
+    - Log warning and publish `Bool(data=true)` once on `/safety/stop`.
+    - If `_current_push_block` set, add it to `_immovable_blocks`.
+- This integrates physical feedback into strategic decisions by avoiding immovable blocks.
+
+## Usage
 ```
+cd ~/jenga_ws
+colcon build --packages-select brain_node
+source install/setup.bash
+```
+```
+ros2 launch brain_node brain.launch.py
+```
+
+## Topics and action interface
+
+**Subscriptions**
+- `/vision/tower` — `tower_interfaces/msg/Tower` — tower occupancy.
+- `/prongs/force_g` — `std_msgs/msg/Float32` — gripper force (g).
+- `/ui/player_done` — `std_msgs/msg/Bool` — player signals done.
+
+**Publications**
+- `/safety/stop` — `std_msgs/msg/Bool` — emits `True` when force exceeds threshold (ESTOP pulse).
+- `/prongs/mode` — `std_msgs/msg/String` — sends `"cf"` once at startup to close prongs.
+- `/ui/robot_turn` — `std_msgs/msg/Bool` — `True` while robot is executing moves; `False` during player turn.
+
+**Actions**
+- `/manipulation_action` — `manipulation/action/Manipulation` — request `push_move`, `pull_move`, `place_move`, `approach_move` using named TF frames (e.g., `block72b`).
+
+Runtime behavior:
+- On startup the node logs it is watching `/prongs/force_g` and waits for `/manipulation_action`.
+- On player trigger: switches to robot turn, selects block, executes the four-step sequence, returns to `WAITING_POS`, sets `/ui/robot_turn = False`, and waits for next signal.
+- If force exceeds `threshold_g` during push: a warning is logged, `/safety/stop` pulses `True`, and the block is added to immovable set.
+
+# 3.4. Technical Components: UI Node
+The UI node provides a simple graphical interface (Tkinter-based) that allows a human player to interact with the robot during the Jenga game. It is responsible for:
+
+- Coordinating turn-taking between the robot and the human.
+- Allowing manual testing of the gripper modes.
+- Displaying live force readings from the end-effector.
+
+The node runs a ROS 2 node in a background thread while Tkinter handles the GUI in the main thread.
+
+- Displays a "Start / Next Move" button.
+- When pressed, publishes True on /ui/player_done.
+- Button is automatically disabled during robot motion.
+- Shows live force readings from /prongs/force_g:
+  - Green if below threshold (e.g., < 50 g)
+  - Red if above threshold
+
+Contains three gripper mode buttons:
+- `o` -> open
+- `cp` -> grip block
+- `cf` -> close fully
+
+These modes are published on `/prongs/mode`.
+
+Subscribes to `/ui/robot_turn` to know when the robot is moving:
+- True -> disables the Start button and shows "Robot is moving…"
+- False -> enables the Start button and shows "Your turn…"
+
+<div align="center">
+  <img src="image/window2.png" alt="UI" width="500"/>
+</div>
+
+## Usage
+
+```bash
 cd ~/ros2_ws
-colcon build --packages-select brain
+colcon build --packages-select ui_node
 source install/setup.bash
 ```
 
-(Note: use setup.bash, not setup.bas.)
-
-## How to run
-
-Assuming all hardware drivers are running and `/prongs/force_g` is being published:
+```bash
+ros2 run ui_node player_gui
 ```
-ros2 run brain brain
-```
-Override the threshold via parameters:
-```
-ros2 run brain brain --ros-args -p threshold_g:=100.0
-```
-## Topics
-
-### Subscriptions
-| Topic | Type | Description |
-|---|---:|---|
-| `/prongs/force_g` | `std_msgs/msg/Float32` | Force from gripper in grams |
-
-### Publications
-| Topic | Type | Description |
-|---|---:|---|
-| `/safety/stop` | `std_msgs/msg/Bool` | `True` when force exceeds threshold (ESTOP) |
-
-If you need the node to reset automatically, check the node parameters for a hysteresis or reset-band option (e.g., a fraction of the threshold) and set it appropriately.
-
----
-
-
-# 3.4. Technical Components: UI Node
-
-## Overview
-
-ui_node provides a minimal terminal-based interface for human control. It reads keyboard input and publishes high-level commands to the robot during testing and gameplay.
-
-## Keyboard Mapping
-
-| Key      | Published Topic   | Message           | Description                         |
-|----------|-------------------|-------------------|-------------------------------------|
-| SPACE    | /ui/player_done   | Bool(data=True)   | Starts or signals robot turn        |
-| O / o    | /prongs/cmd       | "open"            | Opens gripper                       |
-| G / g    | /prongs/cmd       | "close"           | Closes gripper                      |
-| F / f    | /prongs/cmd       | "force"           | Requests force reading              |
-| Q / q    | (none)            | (none)            | Quits UI node                       |
 
 ## Topics
 
-| Direction | Topic            | Type             | Description                          |
-|-----------|------------------|------------------|--------------------------------------|
-| Publishes | /ui/player_done  | std_msgs/Bool    | Player "start" signal                |
-| Publishes | /prongs/cmd      | std_msgs/String  | Manual end-effector commands         |
+**Subscriptions**
+
+| Topic | Type | Description |
+|-------|-------|-------------|
+| `/ui/robot_turn` | `std_msgs/msg/Bool` | Controls enabling/disabling of the Start button. |
+| `/prongs/force_g` | `std_msgs/msg/Float32` | Displays live force reading from the gripper. |
+
+**Publications**
+
+| Topic | Type | Description |
+|-------|-------|-------------|
+| `/ui/player_done` | `std_msgs/msg/Bool` | Indicates the human is ready for the robot to proceed. |
+| `/prongs/mode` | `std_msgs/msg/String` | Sends open (`"o"`), grip (`"cp"`), or close (`"cf"`) commands. |
+
+
 
 ---
 
@@ -338,19 +402,15 @@ Horizontal movement of the grippers is achieved through a **gear–rack mechanis
 This motion is **directly driven by servo rotation**.  
 
 **Force Sensor Integration**  
-One gripper tip is equipped with a **flexible force sensor**.  
-This sensor determines whether a block can be pushed **without destabilising the tower**.  
+One gripper tip is equipped with a **pressure force sensor**.  
+This sensor determines whether a block can be pushed without destabilising the tower.  
 
 **Servo Control**  
-Servos are controlled by an **Arduino**.  
-A **servo expansion board** is used to optimize wiring and save I/O pins.  
-
-**Mounting Method**  
-The end-effector is mounted using an **existing slot fixture**, ensuring stable integration with the robot system.  
+Servos are controlled by an Arduino Nano.  
 
 ## Iterations
 
-Due to geometric constraints and issues found during development, the design underwent **multiple iterations**. 
+Due to geometric constraints and issues found during development, the design underwent multiple iterations. 
 
 **Version 0.0 (Prototype for MVP)** 
 
@@ -381,9 +441,6 @@ Adjusted the orientation of the mount to better align with the kinematics code, 
 <div align="center">
   <img src="image/endeffdrawing.png" alt="Engineering Drawing" width="300"/>
 </div>
-
-Here's the photo of actual end effector: 
-
 <div align="center">
   <img src="image/endeff3.jpg" alt="endeff3" width="300"/>
 </div>
@@ -466,7 +523,7 @@ TOWER_YAW_DEG=45
 - Firmware (PlatformIO, Arduino Nano):
 - Download the code from the following file:
 ```bash
-cd Embedded/"MTRN4231 EndEff/src/main.cpp"
+cd embedded/"end_eff/src/main.cpp"
 ```
 Connect the Components according to the Wiring Diagram Below:
 <div align="center">
@@ -495,6 +552,19 @@ source ~/jenga_ws/install/setup.bash
 - Tower TF and geometry (frames, block sizes, layers) are configured in `real_tower.sh` / `fake_tower.sh`. Adjust to match your physical setup.
 - Force threshold parameter on the brain node defaults to 50.0 g. 
 - Hand–eye calibration: ensure TF connectivity between UR5e base, table/world, and tower frames. No calibration code is required in this repo if TFs are published correctly.
+
+### Troubleshooting
+
+| Error | Possible Cause | Fix |
+|--------|----------------|-----------|
+| Servos on the end-effector do not move and are not torqued | The servos are not powered on | Recheck the wiring and try a seperate power supply to power the servos. |
+| `setupRealur5e.sh` fails to connect to robot | Wrong `robot_ip` or network mismatch | Confirm you can `ping <robot_ip>` from the PC; update `robot_ip:=...` in `setupRealur5e.sh`; ensure PC and UR5e are on same subnet. |
+| No `/prongs/force_g` messages | End-effector bridge not talking to the board | Check `ls /dev/ttyUSB* /dev/ttyACM*`; update the `port` parameter in the bridge command; verify correct baud (115200) and that the Arduino is flashed and powered. Sometimes hitting the reset button or unplugging and plugging in the cable fixes it. |
+| Gripper commands (`"o"`, `"cp"`, `"cf"`) do nothing | `/prongs/mode` not received by bridge | Run `ros2 topic echo /prongs/mode` to confirm UI/brain are publishing; check `ros2 node info <bridge_node>` to ensure it subscribes to `/prongs/mode`. |
+| Brain node logs “No tower data yet; using hard-coded fallback” | Vision / tower TF not running or misconfigured | Start `real_tower.sh` / `fake_tower.sh` and vision node; confirm `/vision/tower` is publishing and that `tower_base` appears in `ros2 run tf2_tools view_frames`. |
+| RViz / MoveIt cannot see the tower | TF frames not aligned or missing | Check TF tree for `world`, `table`, `tower_base`, `blockXYf/b`; adjust `TOWER_X/Y/Z` and `TOWER_YAW_DEG` in `real_tower.sh` to match the physical tower. Ensure the camera can see 2 sides of the tower|
+| Brain always E-stops immediately / does not detect immovable blocks | Force sensor offset / threshold too low | Echo `/prongs/force_g` at rest; Test the peak force received from an immovable block just as the prong touches it and set `threshold_g` in the brain_node to that value. |
+| UI window launches but Start button always disabled | `/ui/robot_turn` stuck at `True` | Check that the brain node is running and toggling `/ui/robot_turn`; if testing UI alone, you can manually publish `False` on `/ui/robot_turn`. |
 
 
 # 5. Running the System
@@ -543,10 +613,44 @@ NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This scrip
 ---
 
 # 6. Results and Demonstration
-- **Performance**: How the system meets design goals.  
-- **Quantitative Results**: Accuracy, repeatability, robustness.  
-- **Demonstration Media**: Photos, figures, or videos of operation.  
-- **Discussion**: Challenges faced, solutions, and opportunities for improvement.  
+## 6.1 Demonstration
+
+### Block Manipulation
+<table>
+  <tr>
+    <td align="center">
+      <img src="image/PushBlock.png" width="250"/><br/>
+      <b>Block Pick</b>
+    </td>
+    <td align="center">
+      <img src="image/PullBlock.png" width="250"/><br/>
+      <b>Block Pull</b>
+    </td>
+    <td align="center">
+      <img src="image/PlaceBlock.png" width="250"/><br/>
+      <b>Block Placement</b>
+    </td>
+  </tr>
+</table>
+
+### Full Demonstration
+
+[Watch the full demonstration on YouTube](https://youtu.be/ButhJ49mhdo)
+
+
+## 6.2 Quantitative Evaluation
+
+From the system requirements set out at the beginning of the project, we were able to evaluate the result of the final product against these:
+
+| Metric | Expected Performance | Measured Result |
+|-------|------------------------------------------|-----------------|
+| **Game Play** | Able to remove blocks and replace on top of tower | Reliably probed, pushed, pulled and placed blocks on top of tower |
+| **Speed** | Turn completed inside 2 minutes | Complete turn takes 1 min 32 seconds on average |
+| **Repeatability** | Able to take 2+ consecutive turns | Reliably can take atleast 3 turns without fail |
+| **Robustness** | Adjusts to major changes in tower position | System can handle rotations of any degree, repositioning of the tower, and removal of blocks from the tower at any stage of gameplay. |
+| **Accuracy** | Block placement alignment within 1 cm | Probes reach the centre of the block within a 5mm tolerance and can safely pick up blocks with a 2 cm offset, where it then places the block on the top within a 5mm tolerance |
+| **Block Detection Accuracy** | Correctly detect ≥ 90% of blocks per frame | Correctly detects 100% of blocks in the tower |
+| **Force Stop Trigger Latency** | Trigger within ≤ 100 ms of crossing force threshold | Median trigger latency of 62 ms from threshold crossing |
 
 ---
 
@@ -564,6 +668,18 @@ NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This scrip
 
 # 9. Repo structure
 
+This repository is organized around ROS2 packages, Arduino code for the end effector, and supporting resources:
+
+- `src/`: ROS2 workspace containing packages for the brain, manipulation, vision, UI, end-effector bridge, UR description, and tower message interfaces.
+- `embedded/`: Arduino source code and reference images for the custom end effector electronics.
+- `image/`: Diagrams and photos used in the README to illustrate system architecture, vision pipeline, and hardware.
+- `solidworks/`: CAD assemblies and parts for the robot’s custom gripper and mechanical components.
+- Top-level helper scripts (`setup*.sh`, `fake_tower.sh`, `real_tower.sh`) streamline environment setup and tower configuration for testing.
+
+NOTE: after running `colcon build` from the `/jenga_bot` directory, expect the following additional folders to appear
+- `build/`
+- `log/`
+- `install/`
 
 ---
 
