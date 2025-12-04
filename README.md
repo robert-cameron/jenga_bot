@@ -453,10 +453,47 @@ source ~/jenga_ws/install/setup.bash
 
 
 # 5. Running the System
-- **Launch Instructions**: Provide a single command to start the system.  
-- **Example Commands**: e.g. `ros2 launch project_name bringup.launch.py`.  
-- **Expected Behavior**: Describe what the user should see.  
-- **Troubleshooting Notes**: Optional tips for common issues.  
+
+### Step 1: Calibration
+
+TODO THOMAS
+- double check the list of tabs in Step 2, not sure if you move any of it to the calibration script 
+
+### Step 2: Startup Script
+
+Once calibrated, run the following script from within the `/jenga_bot` directory:
+
+```
+./setupRealur5e
+```
+
+This script will `colcon build` the solution and open the following tabs in the terminal:
+
+- DriverServer
+- MoveitServer
+- ManipulationServer
+- EndEffServer
+- BrainServer
+- PlayerUI
+- Realsense
+- Static Camera
+- RealTower
+- ObjectDetection
+
+Wait up to 30 seconds for the nodes to start up. The UI and RVIZ will launch automatically when this script is run.
+
+Once all nodes have started, run the `ros` script from the UR5e teach pendent.
+
+The robot is now ready! Interact with it via the UI.
+
+NOTE: alternatively, run `./setupFakeur5e` to use simulated hardware. This script was used for testing and hence, it will only run nodes necessary for manipulation - it will not run computer vision. 
+
+### Troubleshooting
+
+- After running `./setupRealur5e`, it is recommended to manually open/close the end effector via the UI. This ensures that the end_eff_link is running and communicating with the Arduino correctly. 
+  - If the end effector does not respond, restarting the Arduino generally fixes this.
+- If the robot does not move when expected, stop and restart the `ros` script from the UR5e teach pendent.
+- If movement suddenly stops, it is likely that the UR5e joint limits would be exceeded by moving to the next position. Move the jenga tower into a more suitable location and restart the robot.
 
 ---
 
