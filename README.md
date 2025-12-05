@@ -447,7 +447,7 @@ Adjusted the orientation of the mount to better align with the kinematics code, 
 </div>
 
 <div align="center">
-  <img src="image/endeffdrawing.png" alt="Engineering Drawing" width="300"/>
+  <img src="image/endeffdrawing.png" alt="Engineering Drawing" width="1000"/>
 </div>
 <div align="center">
   <img src="image/endeff3.jpg" alt="endeff3" width="300"/>
