@@ -420,15 +420,15 @@ Servos are controlled by an Arduino Nano.
 
 Due to geometric constraints and issues found during development, the design underwent multiple iterations. 
 
-<div align="center">
-  <img src="image/endeffprototype.jpg" alt="endeffprototype" width="300"/>
-</div>
+
 
 **Version 0.0 (Prototype for MVP)** 
 
 This is a simple prototype, only functional for pushing the blocks and providing the end effector pose for research and tests. 
 
-[missing images]
+<div align="center">
+  <img src="image/endeffprototype.jpg" alt="endeffprototype" width="300"/>
+</div>
 
 **Version 1.0:** 
 
